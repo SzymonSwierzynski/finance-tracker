@@ -1,0 +1,26 @@
+# OS
+.DS_Store
+
+# Java / Gradle
+backend/.gradle/
+backend/build/
+backend/bin/
+*.class
+*.log
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+
+# Node / frontend (added in the frontend round)
+node_modules/
+frontend/dist/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
