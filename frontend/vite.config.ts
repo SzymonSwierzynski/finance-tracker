@@ -2,14 +2,14 @@
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
-import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 // In dev we proxy /api -> Spring Boot so the SPA is same-origin (first-party cookies,
 // no CORS). In prod, nginx serves the bundle and proxies /api to the backend.
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
-    alias: { '@': path.resolve(import.meta.dirname, './src') },
+    alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
   server: {
     port: 5173,
