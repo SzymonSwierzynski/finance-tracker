@@ -1,0 +1,40 @@
+# Local/demo stack. Phase 1 ships db + backend; the frontend service is added in
+# the frontend round. Bring it up with: docker compose up --build
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: finance
+      POSTGRES_USER: finance
+      POSTGRES_PASSWORD: finance
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finance -d finance"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Default profile keeps cookies non-Secure so the demo works over http://localhost.
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/finance
+      SPRING_DATASOURCE_USERNAME: finance
+      SPRING_DATASOURCE_PASSWORD: finance
+      # No JWT keypair configured -> an ephemeral key is generated (dev/demo only).
+    ports:
+      - "8080:8080"
+
+  # frontend:
+  #   build: ./frontend
+  #   depends_on: [backend]
+  #   ports: ["5173:80"]
+
+volumes:
+  db-data:
