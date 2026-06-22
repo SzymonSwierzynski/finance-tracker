@@ -34,6 +34,15 @@ public class SettingsService {
         .orElseThrow(() -> NotFoundException.of("Settings", userId));
   }
 
+  /** The user's base/reporting currency (ISO 4217). Used to resolve transaction rates to base. */
+  @Transactional(readOnly = true)
+  public String reportingCurrency(long userId) {
+    return repository
+        .findById(userId)
+        .map(Settings::getReportingCurrency)
+        .orElseThrow(() -> NotFoundException.of("Settings", userId));
+  }
+
   @Transactional
   public SettingsResponse update(long userId, UpdateSettingsRequest request) {
     Settings settings =

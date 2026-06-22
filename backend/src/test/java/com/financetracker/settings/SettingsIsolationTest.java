@@ -74,8 +74,4 @@ class SettingsIsolationTest extends AbstractIntegrationTest {
         .perform(get("/api/v1/settings").header(HttpHeaders.AUTHORIZATION, bearer(user)))
         .andExpect(status().isOk());
   }
-
-  private static String bearer(RegisteredUser user) {
-    return "Bearer " + user.accessToken();
-  }
 }

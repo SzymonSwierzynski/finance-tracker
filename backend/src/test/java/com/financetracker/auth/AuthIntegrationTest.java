@@ -91,8 +91,4 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
         .perform(post("/api/v1/auth/refresh").cookie(user.refreshCookie()))
         .andExpect(status().isUnauthorized());
   }
-
-  private static String bearer(RegisteredUser user) {
-    return "Bearer " + user.accessToken();
-  }
 }

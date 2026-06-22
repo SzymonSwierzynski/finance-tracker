@@ -77,6 +77,8 @@ val coverageExclusions =
         "com/financetracker/auth/User.class",
         "com/financetracker/auth/RefreshToken.class",
         "com/financetracker/settings/Settings.class",
+        "com/financetracker/account/Account.class",
+        "com/financetracker/transaction/Transaction.class",
         "com/financetracker/common/UserOwnedEntity.class",
         "com/financetracker/common/BaseEntity.class",
     )

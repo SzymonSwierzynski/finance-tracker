@@ -59,6 +59,13 @@ public class GlobalExceptionHandler {
         HttpStatus.UNAUTHORIZED, "Unauthorized", "Invalid email or password.", req.getRequestURI());
   }
 
+  @ExceptionHandler(UnprocessableEntityException.class)
+  public ProblemDetail handleUnprocessable(
+      UnprocessableEntityException ex, HttpServletRequest req) {
+    return problem(
+        HttpStatus.UNPROCESSABLE_ENTITY, "Unprocessable", ex.getMessage(), req.getRequestURI());
+  }
+
   @ExceptionHandler(MethodArgumentNotValidException.class)
   public ProblemDetail handleValidation(
       MethodArgumentNotValidException ex, HttpServletRequest req) {

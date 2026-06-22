@@ -55,4 +55,9 @@ public abstract class AbstractIntegrationTest {
 
   protected record RegisteredUser(
       long id, String email, String accessToken, Cookie refreshCookie) {}
+
+  /** Authorization header value for a registered user. */
+  protected static String bearer(RegisteredUser user) {
+    return "Bearer " + user.accessToken();
+  }
 }
