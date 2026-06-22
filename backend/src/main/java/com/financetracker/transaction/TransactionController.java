@@ -40,9 +40,10 @@ public class TransactionController {
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
       @RequestParam(required = false) Long accountId,
       @RequestParam(required = false) TransactionType type,
+      @RequestParam(required = false) Long categoryId,
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "50") int size) {
-    return transactionService.list(user.id(), from, to, accountId, type, page, size);
+    return transactionService.list(user.id(), from, to, accountId, type, categoryId, page, size);
   }
 
   @PostMapping

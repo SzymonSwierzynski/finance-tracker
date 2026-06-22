@@ -5,8 +5,10 @@ import { useAuth } from '@/features/auth/AuthProvider'
 
 const navItems = [
   { to: '/', key: 'nav.dashboard', end: true },
-  { to: '/accounts', key: 'nav.accounts', end: false },
+  { to: '/breakdown', key: 'nav.breakdown', end: false },
   { to: '/transactions', key: 'nav.transactions', end: false },
+  { to: '/accounts', key: 'nav.accounts', end: false },
+  { to: '/categories', key: 'nav.categories', end: false },
   { to: '/settings', key: 'nav.settings', end: false },
 ] as const
 

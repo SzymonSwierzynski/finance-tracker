@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useSearchParams } from 'react-router-dom'
 import type { Transaction, TransactionType } from '@/api'
 import { TRANSACTION_TYPES } from '@/api'
 import { Badge, Button, Card, CenteredState, PageHeader, Select, Input, Skeleton } from '@/components/primitives'
@@ -8,6 +9,7 @@ import { useToast } from '@/components/Toast'
 import { formatDate } from '@/lib/date'
 import { localeForLanguage } from '@/lib/i18n'
 import { useAccounts } from '@/features/accounts/hooks'
+import { useCategories } from '@/features/categories/hooks'
 import { useSettings } from '@/features/settings/hooks'
 import { TransactionForm } from './TransactionForm'
 import { useDeleteTransaction, useTransactions } from './hooks'
@@ -19,10 +21,12 @@ export function TransactionsPage() {
   const toast = useToast()
   const locale = localeForLanguage(i18n.language)
 
+  const [searchParams] = useSearchParams()
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [accountId, setAccountId] = useState('')
   const [type, setType] = useState('')
+  const [categoryId, setCategoryId] = useState(searchParams.get('categoryId') ?? '')
   const [page, setPage] = useState(0)
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Transaction | undefined>(undefined)
@@ -32,12 +36,14 @@ export function TransactionsPage() {
     to: to || undefined,
     accountId: accountId ? Number(accountId) : undefined,
     type: (type || undefined) as TransactionType | undefined,
+    categoryId: categoryId ? Number(categoryId) : undefined,
     page,
     size: PAGE_SIZE,
   }
 
   const { data, isLoading, isError, refetch } = useTransactions(filters)
   const { data: accounts } = useAccounts(true)
+  const { data: categories } = useCategories()
   const { data: settings } = useSettings()
   const baseCurrency = settings?.reportingCurrency ?? 'PLN'
 
@@ -46,6 +52,12 @@ export function TransactionsPage() {
     for (const a of accounts ?? []) map.set(a.id, a.name)
     return (id: number | null) => (id == null ? '—' : (map.get(id) ?? `#${id}`))
   }, [accounts])
+
+  const categoryName = useMemo(() => {
+    const map = new Map<number, string>()
+    for (const c of categories ?? []) map.set(c.id, c.name)
+    return (id: number | null) => (id == null ? null : (map.get(id) ?? null))
+  }, [categories])
 
   const remove = useDeleteTransaction()
   const onDelete = (tx: Transaction) => {
@@ -76,7 +88,7 @@ export function TransactionsPage() {
       />
 
       <Card className="mb-4 p-4">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <Input type="date" aria-label={t('transactions.from')} value={from} onChange={(e) => { setPage(0); setFrom(e.target.value) }} />
           <Input type="date" aria-label={t('transactions.to')} value={to} onChange={(e) => { setPage(0); setTo(e.target.value) }} />
           <Select aria-label={t('transactions.account')} value={accountId} onChange={(e) => { setPage(0); setAccountId(e.target.value) }}>
@@ -92,6 +104,14 @@ export function TransactionsPage() {
             {TRANSACTION_TYPES.map((tt) => (
               <option key={tt} value={tt}>
                 {t(`transactions.${tt}`)}
+              </option>
+            ))}
+          </Select>
+          <Select aria-label={t('transactions.category')} value={categoryId} onChange={(e) => { setPage(0); setCategoryId(e.target.value) }}>
+            <option value="">{t('common.all')} — {t('transactions.category')}</option>
+            {(categories ?? []).map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.parentId == null ? c.name : `· ${c.name}`}
               </option>
             ))}
           </Select>
@@ -131,8 +151,12 @@ export function TransactionsPage() {
                     <td className="whitespace-nowrap px-4 py-3 text-slate-500">{formatDate(tx.date, locale)}</td>
                     <td className="px-4 py-3">
                       <div className="font-medium text-slate-800">{tx.description || '—'}</div>
-                      {tx.type === 'transfer' && (
+                      {tx.type === 'transfer' ? (
                         <div className="text-xs text-slate-400">→ {accountName(tx.counterAccountId)}</div>
+                      ) : (
+                        categoryName(tx.categoryId) && (
+                          <div className="text-xs text-slate-400">{categoryName(tx.categoryId)}</div>
+                        )
                       )}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3">

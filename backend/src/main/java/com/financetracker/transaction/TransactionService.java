@@ -2,6 +2,9 @@ package com.financetracker.transaction;
 
 import com.financetracker.account.Account;
 import com.financetracker.account.AccountRepository;
+import com.financetracker.category.Category;
+import com.financetracker.category.CategoryKind;
+import com.financetracker.category.CategoryRepository;
 import com.financetracker.common.error.ConflictException;
 import com.financetracker.common.error.NotFoundException;
 import com.financetracker.common.error.UnprocessableEntityException;
@@ -39,14 +42,17 @@ public class TransactionService {
 
   private final TransactionRepository transactionRepository;
   private final AccountRepository accountRepository;
+  private final CategoryRepository categoryRepository;
   private final RateResolver rateResolver;
 
   public TransactionService(
       TransactionRepository transactionRepository,
       AccountRepository accountRepository,
+      CategoryRepository categoryRepository,
       RateResolver rateResolver) {
     this.transactionRepository = transactionRepository;
     this.accountRepository = accountRepository;
+    this.categoryRepository = categoryRepository;
     this.rateResolver = rateResolver;
   }
 
@@ -79,6 +85,8 @@ public class TransactionService {
       counterAccountId = request.counterAccountId();
     }
 
+    Long categoryId = resolveCategoryId(userId, request.type(), request.categoryId());
+
     Transaction tx = new Transaction();
     tx.setUserId(userId);
     tx.setDate(request.date());
@@ -86,7 +94,7 @@ public class TransactionService {
     tx.setType(request.type());
     tx.setAccountId(request.accountId());
     tx.setCounterAccountId(counterAccountId);
-    tx.setCategoryId(null); // categories arrive in Phase 3
+    tx.setCategoryId(categoryId);
     tx.setCurrency(currency);
     tx.setRateToBase(rateToBase);
     tx.setDescription(description);
@@ -105,6 +113,7 @@ public class TransactionService {
       LocalDate to,
       Long accountId,
       TransactionType type,
+      Long categoryId,
       int page,
       int size) {
     int safeSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
@@ -113,7 +122,8 @@ public class TransactionService {
     Pageable pageable =
         PageRequest.of(safePage, safeSize, Sort.by(Sort.Order.desc("date"), Sort.Order.desc("id")));
     Page<Transaction> result =
-        transactionRepository.findAll(filter(userId, from, to, accountId, type), pageable);
+        transactionRepository.findAll(
+            filter(userId, from, to, accountId, type, categoryId), pageable);
     List<TransactionResponse> items = result.getContent().stream().map(this::toResponse).toList();
     return PageResponse.of(items, result);
   }
@@ -123,7 +133,12 @@ public class TransactionService {
    * of a transfer (account or counter account), mirroring the prototype.
    */
   private static Specification<Transaction> filter(
-      long userId, LocalDate from, LocalDate to, Long accountId, TransactionType type) {
+      long userId,
+      LocalDate from,
+      LocalDate to,
+      Long accountId,
+      TransactionType type,
+      Long categoryId) {
     return (root, query, cb) -> {
       List<Predicate> predicates = new ArrayList<>();
       predicates.add(cb.equal(root.get("userId"), userId));
@@ -141,6 +156,9 @@ public class TransactionService {
       }
       if (type != null) {
         predicates.add(cb.equal(root.get("type"), type));
+      }
+      if (categoryId != null) {
+        predicates.add(cb.equal(root.get("categoryId"), categoryId));
       }
       return cb.and(predicates.toArray(new Predicate[0]));
     };
@@ -168,6 +186,8 @@ public class TransactionService {
     if (request.note() != null) {
       tx.setNote(request.note().trim());
     }
+    // categoryId is applied as given (null uncategorizes); validated against ownership + kind.
+    tx.setCategoryId(resolveCategoryId(userId, tx.getType(), request.categoryId()));
     // Inputs to the dedupe hash may have changed; keep it in sync.
     tx.setDedupeHash(
         dedupeHash(
@@ -197,6 +217,33 @@ public class TransactionService {
     return transactionRepository
         .findByIdAndUserId(id, userId)
         .orElseThrow(() -> NotFoundException.of("Transaction", id));
+  }
+
+  /**
+   * Validate a requested category: transfers may not be categorized; an expense/income
+   * transaction's category must be owned by the user and share its kind. Returns the id to store
+   * (or null).
+   */
+  private Long resolveCategoryId(long userId, TransactionType type, Long categoryId) {
+    if (categoryId == null) {
+      return null;
+    }
+    if (type == TransactionType.TRANSFER) {
+      throw new UnprocessableEntityException("Transfers cannot be categorized.");
+    }
+    Category category =
+        categoryRepository
+            .findByIdAndUserId(categoryId, userId)
+            .orElseThrow(() -> NotFoundException.of("Category", categoryId));
+    CategoryKind requiredKind =
+        type == TransactionType.INCOME ? CategoryKind.INCOME : CategoryKind.EXPENSE;
+    if (category.getKind() != requiredKind) {
+      throw new UnprocessableEntityException(
+          "Category kind ("
+              + category.getKind().value()
+              + ") does not match the transaction type.");
+    }
+    return category.getId();
   }
 
   private static void requireCurrentVersion(Transaction tx, long expectedVersion) {

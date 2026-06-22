@@ -1,7 +1,9 @@
 package com.financetracker.reporting;
 
+import com.financetracker.category.CategoryKind;
 import com.financetracker.common.security.AuthUser;
 import com.financetracker.common.security.CurrentUser;
+import com.financetracker.reporting.dto.BreakdownResponse;
 import com.financetracker.reporting.dto.SummaryResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import java.time.LocalDate;
@@ -28,5 +30,15 @@ public class ReportingController {
       @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
       @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
     return reportingService.summary(user.id(), from, to);
+  }
+
+  @GetMapping("/breakdown")
+  public BreakdownResponse breakdown(
+      @CurrentUser AuthUser user,
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+      @RequestParam(defaultValue = "expense") CategoryKind kind,
+      @RequestParam(required = false) Long parentId) {
+    return reportingService.breakdown(user.id(), from, to, kind, parentId);
   }
 }

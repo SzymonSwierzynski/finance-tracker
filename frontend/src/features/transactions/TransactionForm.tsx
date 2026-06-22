@@ -10,6 +10,7 @@ import { useToast } from '@/components/Toast'
 import { parseAmountToMinor } from '@/lib/money'
 import { todayIso } from '@/lib/date'
 import { useAccounts } from '@/features/accounts/hooks'
+import { useCategories } from '@/features/categories/hooks'
 import { useCreateTransaction, useUpdateTransaction } from './hooks'
 
 const schema = z
@@ -18,6 +19,7 @@ const schema = z
     type: z.enum(['expense', 'income', 'transfer']),
     accountId: z.string().min(1, 'required'),
     counterAccountId: z.string(),
+    categoryId: z.string(),
     amount: z.string().min(1, 'required'),
     currency: z.string(),
     rateToBase: z.string(),
@@ -56,6 +58,7 @@ export function TransactionForm({
   const toast = useToast()
   const editing = Boolean(transaction)
   const { data: accounts } = useAccounts(false)
+  const { data: categories } = useCategories()
   const create = useCreateTransaction()
   const update = useUpdateTransaction()
 
@@ -67,6 +70,7 @@ export function TransactionForm({
       type: transaction?.type ?? 'expense',
       accountId: transaction ? String(transaction.accountId) : '',
       counterAccountId: transaction?.counterAccountId ? String(transaction.counterAccountId) : '',
+      categoryId: transaction?.categoryId ? String(transaction.categoryId) : '',
       amount: transaction ? minorToInput(transaction.amountMinor) : '',
       currency: transaction?.currency ?? '',
       rateToBase: transaction ? String(transaction.rateToBase) : '',
@@ -78,12 +82,25 @@ export function TransactionForm({
   const type = watch('type')
   const selectedAccountId = watch('accountId')
   const options = accounts ?? []
+  // Category applies to expense/income only; options match the transaction's kind.
+  const effectiveType = transaction?.type ?? type
+  const categoryOptions = (categories ?? []).filter(
+    (c) => c.kind === (effectiveType === 'income' ? 'income' : 'expense'),
+  )
+  const categoryLabel = (id: number): string => {
+    const c = categoryOptions.find((x) => x.id === id)
+    if (!c) return ''
+    if (c.parentId == null) return c.name
+    const parent = categoryOptions.find((x) => x.id === c.parentId)
+    return parent ? `${parent.name} / ${c.name}` : c.name
+  }
 
   const onSubmit = handleSubmit(async (values) => {
     const amountMinor = parseAmountToMinor(values.amount)
     if (amountMinor == null || amountMinor <= 0) return
 
     try {
+      const categoryId = values.categoryId ? Number(values.categoryId) : undefined
       if (transaction) {
         await update.mutateAsync({
           id: transaction.id,
@@ -91,6 +108,9 @@ export function TransactionForm({
             version: transaction.version,
             date: values.date,
             amountMinor,
+            // The server applies categoryId as given; omitting it (undefined) uncategorizes.
+            // Transfers can't be categorized, so always omit for them.
+            categoryId: transaction.type === 'transfer' ? undefined : categoryId,
             description: values.description,
             note: values.note,
           },
@@ -102,6 +122,7 @@ export function TransactionForm({
           type: values.type as TransactionType,
           accountId: Number(values.accountId),
           counterAccountId: values.type === 'transfer' ? Number(values.counterAccountId) : undefined,
+          categoryId: values.type === 'transfer' ? undefined : categoryId,
           currency: values.currency ? values.currency.toUpperCase() : undefined,
           rateToBase: values.rateToBase ? Number(values.rateToBase) : undefined,
           description: values.description || undefined,
@@ -189,6 +210,19 @@ export function TransactionForm({
               </Field>
             </div>
           </>
+        )}
+
+        {effectiveType !== 'transfer' && (
+          <Field label={`${t('transactions.category')} (${t('common.optional')})`} htmlFor="tx-cat">
+            <Select id="tx-cat" {...register('categoryId')}>
+              <option value="">{t('breakdown.uncategorized')}</option>
+              {categoryOptions.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {categoryLabel(c.id)}
+                </option>
+              ))}
+            </Select>
+          </Field>
         )}
 
         <Field label={`${t('transactions.description')} (${t('common.optional')})`} htmlFor="tx-desc">

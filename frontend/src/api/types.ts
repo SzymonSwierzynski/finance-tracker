@@ -10,7 +10,7 @@ type S = components['schemas']
 
 export type AccountType = NonNullable<S['CreateAccountRequest']['type']>
 export type TransactionType = NonNullable<S['CreateTransactionRequest']['type']>
-export type CategoryKind = 'expense' | 'income'
+export type CategoryKind = NonNullable<S['CreateCategoryRequest']['kind']>
 
 // Request contracts (generated).
 export type RegisterRequest = S['RegisterRequest']
@@ -19,6 +19,8 @@ export type CreateAccountRequest = S['CreateAccountRequest']
 export type UpdateAccountRequest = S['UpdateAccountRequest']
 export type CreateTransactionRequest = S['CreateTransactionRequest']
 export type UpdateTransactionRequest = S['UpdateTransactionRequest']
+export type CreateCategoryRequest = S['CreateCategoryRequest']
+export type UpdateCategoryRequest = S['UpdateCategoryRequest']
 export type UpdateSettingsRequest = S['UpdateSettingsRequest']
 
 // Response view-models.
@@ -90,5 +92,48 @@ export interface Settings {
   reportingCurrency: string
 }
 
+export interface Category {
+  id: number
+  name: string
+  kind: CategoryKind
+  parentId: number | null
+  color: string
+  version: number
+}
+
+export interface DeleteCategoryResult {
+  uncategorizedTransactions: number
+}
+
+export interface BreakdownChild {
+  categoryId: number | null
+  name: string
+  baseMinor: number
+  share: number
+}
+
+export interface BreakdownParent {
+  categoryId: number | null
+  name: string
+  color: string
+  baseMinor: number
+  share: number
+  children: BreakdownChild[]
+}
+
+export interface Breakdown {
+  kind: CategoryKind
+  from: string
+  to: string
+  currency: string
+  totalBaseMinor: number
+  count: number
+  parents: BreakdownParent[]
+}
+
 export const ACCOUNT_TYPES: AccountType[] = ['checking', 'savings', 'cash', 'credit']
 export const TRANSACTION_TYPES: TransactionType[] = ['expense', 'income', 'transfer']
+export const CATEGORY_KINDS: CategoryKind[] = ['expense', 'income']
+
+/** Fixed Uncategorized slice colour (matches the backend). */
+export const UNCATEGORIZED_COLOR = '#94a3b8'

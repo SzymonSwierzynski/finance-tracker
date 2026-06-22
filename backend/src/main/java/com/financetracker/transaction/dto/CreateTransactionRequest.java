@@ -20,6 +20,7 @@ public record CreateTransactionRequest(
     @NotNull TransactionType type,
     @NotNull Long accountId,
     Long counterAccountId,
+    Long categoryId,
     @Pattern(regexp = "^[A-Za-z]{3}$", message = "must be a 3-letter ISO 4217 currency code")
         String currency,
     @Positive BigDecimal rateToBase,

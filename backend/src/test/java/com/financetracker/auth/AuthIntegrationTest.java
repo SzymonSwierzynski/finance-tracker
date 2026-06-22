@@ -78,6 +78,17 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
   }
 
   @Test
+  void registerSeedsDefaultCategories() throws Exception {
+    RegisteredUser user = register("seed@example.com", "password123");
+
+    mockMvc
+        .perform(get("/api/v1/categories").header(HttpHeaders.AUTHORIZATION, bearer(user)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.length()").value(22))
+        .andExpect(jsonPath("$[?(@.name == 'Groceries')].kind").value("expense"));
+  }
+
+  @Test
   void logoutRevokesRefreshToken() throws Exception {
     RegisteredUser user = register("logout@example.com", "password123");
 

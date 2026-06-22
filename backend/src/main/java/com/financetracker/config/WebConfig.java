@@ -1,5 +1,6 @@
 package com.financetracker.config;
 
+import com.financetracker.category.CategoryKind;
 import com.financetracker.common.security.CurrentUserArgumentResolver;
 import com.financetracker.transaction.TransactionType;
 import java.util.List;
@@ -29,5 +30,6 @@ public class WebConfig implements WebMvcConfigurer {
     // default enum binder uses Enum.valueOf (upper-case names), so register the value()-based
     // parse.
     registry.addConverter(String.class, TransactionType.class, TransactionType::fromValue);
+    registry.addConverter(String.class, CategoryKind.class, CategoryKind::fromValue);
   }
 }

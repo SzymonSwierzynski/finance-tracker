@@ -10,7 +10,7 @@ const resources = {
   en: {
     translation: {
       app: { name: 'Finance Tracker', tagline: 'See where your money goes' },
-      nav: { dashboard: 'Dashboard', accounts: 'Accounts', transactions: 'Transactions', settings: 'Settings', logout: 'Log out' },
+      nav: { dashboard: 'Dashboard', breakdown: 'Breakdown', accounts: 'Accounts', transactions: 'Transactions', categories: 'Categories', settings: 'Settings', logout: 'Log out' },
       common: {
         save: 'Save', cancel: 'Cancel', create: 'Create', edit: 'Edit', delete: 'Delete',
         archive: 'Archive', loading: 'Loading…', retry: 'Retry', all: 'All', none: 'None',
@@ -38,8 +38,18 @@ const resources = {
         title: 'Transactions', new: 'New transaction', date: 'Date', amount: 'Amount', type: 'Type',
         account: 'Account', counterAccount: 'To account', description: 'Description', note: 'Note',
         rate: 'Rate to base', baseValue: 'Base value', empty: 'No transactions match these filters.',
-        expense: 'Expense', income: 'Income', transfer: 'Transfer', filters: 'Filters',
+        expense: 'Expense', income: 'Income', transfer: 'Transfer', filters: 'Filters', category: 'Category',
         deleteConfirm: 'Delete this transaction?', from: 'From', to: 'To', rateHint: 'Required for currencies other than your base.',
+      },
+      categories: {
+        title: 'Categories', new: 'New category', name: 'Name', kind: 'Kind', color: 'Color',
+        parent: 'Parent category', topLevel: 'Top-level (no parent)', expense: 'Expense', income: 'Income',
+        empty: 'No categories yet — add your first one.', deleteConfirm: 'Delete this category? Its subcategories are removed and affected transactions become uncategorized.',
+        deleted: 'Category deleted ({{count}} transaction(s) uncategorized).',
+      },
+      breakdown: {
+        title: 'Breakdown', categories: 'Categories', uncategorized: 'Uncategorized',
+        allCategories: 'All categories', viewTransactions: 'View transactions', empty: 'No spending in this period yet.',
       },
       settings: {
         title: 'Settings', reportingCurrency: 'Reporting currency',
@@ -51,7 +61,7 @@ const resources = {
   pl: {
     translation: {
       app: { name: 'Finanse', tagline: 'Zobacz, gdzie znikają Twoje pieniądze' },
-      nav: { dashboard: 'Pulpit', accounts: 'Konta', transactions: 'Transakcje', settings: 'Ustawienia', logout: 'Wyloguj' },
+      nav: { dashboard: 'Pulpit', breakdown: 'Podział', accounts: 'Konta', transactions: 'Transakcje', categories: 'Kategorie', settings: 'Ustawienia', logout: 'Wyloguj' },
       common: {
         save: 'Zapisz', cancel: 'Anuluj', create: 'Utwórz', edit: 'Edytuj', delete: 'Usuń',
         archive: 'Archiwizuj', loading: 'Ładowanie…', retry: 'Ponów', all: 'Wszystkie', none: 'Brak',
@@ -79,8 +89,18 @@ const resources = {
         title: 'Transakcje', new: 'Nowa transakcja', date: 'Data', amount: 'Kwota', type: 'Typ',
         account: 'Konto', counterAccount: 'Konto docelowe', description: 'Opis', note: 'Notatka',
         rate: 'Kurs do bazy', baseValue: 'Wartość bazowa', empty: 'Brak transakcji dla tych filtrów.',
-        expense: 'Wydatek', income: 'Przychód', transfer: 'Przelew', filters: 'Filtry',
+        expense: 'Wydatek', income: 'Przychód', transfer: 'Przelew', filters: 'Filtry', category: 'Kategoria',
         deleteConfirm: 'Usunąć tę transakcję?', from: 'Od', to: 'Do', rateHint: 'Wymagany dla walut innych niż bazowa.',
+      },
+      categories: {
+        title: 'Kategorie', new: 'Nowa kategoria', name: 'Nazwa', kind: 'Rodzaj', color: 'Kolor',
+        parent: 'Kategoria nadrzędna', topLevel: 'Najwyższy poziom (bez nadrzędnej)', expense: 'Wydatki', income: 'Przychody',
+        empty: 'Brak kategorii — dodaj pierwszą.', deleteConfirm: 'Usunąć tę kategorię? Podkategorie zostaną usunięte, a powiązane transakcje stracą kategorię.',
+        deleted: 'Usunięto kategorię ({{count}} transakcji bez kategorii).',
+      },
+      breakdown: {
+        title: 'Podział', categories: 'Kategorie', uncategorized: 'Bez kategorii',
+        allCategories: 'Wszystkie kategorie', viewTransactions: 'Pokaż transakcje', empty: 'Brak wydatków w tym okresie.',
       },
       settings: {
         title: 'Ustawienia', reportingCurrency: 'Waluta raportowania',

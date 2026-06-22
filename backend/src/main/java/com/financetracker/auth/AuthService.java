@@ -3,6 +3,7 @@ package com.financetracker.auth;
 import com.financetracker.auth.dto.UserProfileResponse;
 import com.financetracker.common.error.ConflictException;
 import com.financetracker.common.error.NotFoundException;
+import com.financetracker.category.DefaultCategorySeeder;
 import com.financetracker.config.AuthProperties;
 import com.financetracker.settings.SettingsService;
 import java.nio.charset.StandardCharsets;
@@ -29,6 +30,7 @@ public class AuthService {
   private final UserRepository userRepository;
   private final RefreshTokenRepository refreshTokenRepository;
   private final SettingsService settingsService;
+  private final DefaultCategorySeeder defaultCategorySeeder;
   private final PasswordEncoder passwordEncoder;
   private final JwtService jwtService;
   private final AuthProperties props;
@@ -38,12 +40,14 @@ public class AuthService {
       UserRepository userRepository,
       RefreshTokenRepository refreshTokenRepository,
       SettingsService settingsService,
+      DefaultCategorySeeder defaultCategorySeeder,
       PasswordEncoder passwordEncoder,
       JwtService jwtService,
       AuthProperties props) {
     this.userRepository = userRepository;
     this.refreshTokenRepository = refreshTokenRepository;
     this.settingsService = settingsService;
+    this.defaultCategorySeeder = defaultCategorySeeder;
     this.passwordEncoder = passwordEncoder;
     this.jwtService = jwtService;
     this.props = props;
@@ -63,6 +67,7 @@ public class AuthService {
     User saved = userRepository.save(user);
 
     settingsService.createDefault(saved.getId());
+    defaultCategorySeeder.seedIfEmpty(saved.getId());
     return issueTokens(saved);
   }
 
@@ -78,6 +83,7 @@ public class AuthService {
     if (user.getStatus() != UserStatus.ACTIVE) {
       throw new BadCredentialsException("Account is disabled");
     }
+    defaultCategorySeeder.seedIfEmpty(user.getId());
     return issueTokens(user);
   }
 

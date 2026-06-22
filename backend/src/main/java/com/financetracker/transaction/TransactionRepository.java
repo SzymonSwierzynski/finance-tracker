@@ -2,6 +2,7 @@ package com.financetracker.transaction;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -20,6 +21,9 @@ public interface TransactionRepository
     extends JpaRepository<Transaction, Long>, JpaSpecificationExecutor<Transaction> {
 
   Optional<Transaction> findByIdAndUserId(long id, long userId);
+
+  /** How many of the user's transactions reference any of the given categories. */
+  long countByUserIdAndCategoryIdIn(long userId, Collection<Long> categoryIds);
 
   /**
    * Income/expense totals for a date range, in base (reporting) minor units. Each row is converted
@@ -63,10 +67,42 @@ public interface TransactionRepository
       nativeQuery = true)
   long accountActivityMinor(@Param("userId") long userId, @Param("accountId") long accountId);
 
+  /**
+   * Base totals grouped by category for one kind over a date range (null category = uncategorized).
+   * Folded into the two-level breakdown in tested Java.
+   */
+  @Query(
+      value =
+          """
+          SELECT t.category_id AS categoryId,
+                 COALESCE(SUM(round(t.amount_minor * t.rate_to_base)), 0) AS baseMinor,
+                 COUNT(*) AS txnCount
+          FROM transactions t
+          WHERE t.user_id = :userId
+            AND t.date BETWEEN :from AND :to
+            AND t.type = :type
+          GROUP BY t.category_id
+          """,
+      nativeQuery = true)
+  List<CategorySumRow> sumByCategory(
+      @Param("userId") long userId,
+      @Param("from") LocalDate from,
+      @Param("to") LocalDate to,
+      @Param("type") String type);
+
   /** Native projection for {@link #summarize}. */
   interface SummaryRow {
     String getType();
 
     BigDecimal getBaseMinor();
+  }
+
+  /** Projection for {@link #sumByCategory}; {@code categoryId} is null for uncategorized spend. */
+  interface CategorySumRow {
+    Long getCategoryId();
+
+    BigDecimal getBaseMinor();
+
+    long getTxnCount();
   }
 }
