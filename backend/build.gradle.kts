@@ -3,7 +3,7 @@ plugins {
     id("org.springframework.boot") version "3.5.15"
     id("io.spring.dependency-management") version "1.1.7"
     jacoco
-    id("com.diffplug.spotless") version "7.0.2"
+    id("com.diffplug.spotless") version "8.8.0"
 }
 
 group = "com.financetracker"
