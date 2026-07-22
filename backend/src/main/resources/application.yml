@@ -60,6 +60,16 @@ app:
     jwt:
       key-id: ft-dev-1
       # private-key / public-key are injected via env in prod; absent -> ephemeral dev key.
+    # Nightly purge of refresh tokens that are past expiry (revoked-but-live rows are kept so
+    # reuse detection keeps working).
+    token-cleanup-cron: "0 15 3 * * *"
+  rate-limit:
+    # Throttles /auth/{register,login,refresh} per client IP. Per-instance, in-memory: the
+    # effective limit multiplies by instance count, so revisit when scaling out horizontally.
+    enabled: true
+    capacity: 20
+    window: 1m
+    sweep-interval: PT10M
   cors:
     allowed-origins:
       - http://localhost:5173

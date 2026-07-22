@@ -37,3 +37,39 @@ jobs:
             backend/build/reports/tests/test
             backend/build/reports/jacoco
           if-no-files-found: ignore
+
+  frontend:
+    name: Frontend build & tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      # `build` runs the TypeScript project typecheck (`tsc -b`) and then the Vite production bundle,
+      # so it doubles as the typecheck gate.
+      - name: Build
+        run: npm run build
+
+      # Gate on vulnerabilities in shipped (production) dependencies only. Dev-only tooling — e.g. the
+      # OpenAPI type generator — carries advisories that never reach the bundle, so they must not
+      # block every PR. Tighten to include dev deps once that tree is clean.
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high

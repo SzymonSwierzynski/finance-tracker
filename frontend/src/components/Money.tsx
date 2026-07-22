@@ -4,6 +4,7 @@ import type { FormatMoneyOptions } from '@/lib/money'
 import { localeForLanguage } from '@/lib/i18n'
 
 /** Locale-aware money formatter bound to the active UI language. */
+// eslint-disable-next-line react-refresh/only-export-components -- hook co-located with the Money component
 export function useFormatMoney() {
   const { i18n } = useTranslation()
   const locale = localeForLanguage(i18n.language)

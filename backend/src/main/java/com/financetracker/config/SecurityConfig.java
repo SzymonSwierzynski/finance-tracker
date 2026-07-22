@@ -1,8 +1,11 @@
 package com.financetracker.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.financetracker.common.security.RateLimitFilter;
 import com.financetracker.common.security.RestAccessDeniedHandler;
 import com.financetracker.common.security.RestAuthenticationEntryPoint;
 import java.util.List;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -18,6 +21,7 @@ import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWrite
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.filter.CorsFilter;
 
 /**
  * Stateless JWT resource-server security. Auth endpoints + health + OpenAPI are public; everything
@@ -34,10 +38,15 @@ public class SecurityConfig {
       JwtDecoder jwtDecoder,
       RestAuthenticationEntryPoint authenticationEntryPoint,
       RestAccessDeniedHandler accessDeniedHandler,
-      CorsConfigurationSource corsConfigurationSource)
+      CorsConfigurationSource corsConfigurationSource,
+      RateLimitFilter rateLimitFilter)
       throws Exception {
     http.csrf(AbstractHttpConfigurer::disable)
         .cors(cors -> cors.configurationSource(corsConfigurationSource))
+        // After CORS so a 429 still carries the headers the browser needs to surface it as a real
+        // response rather than an opaque network failure; before authentication so a throttled
+        // request never pays for a BCrypt hash.
+        .addFilterAfter(rateLimitFilter, CorsFilter.class)
         .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .authorizeHttpRequests(
             auth ->
@@ -77,6 +86,23 @@ public class SecurityConfig {
   PasswordEncoder passwordEncoder() {
     // BCrypt strength 12 per §5.
     return new BCryptPasswordEncoder(12);
+  }
+
+  @Bean
+  RateLimitFilter rateLimitFilter(RateLimitProperties props, ObjectMapper objectMapper) {
+    return new RateLimitFilter(props, objectMapper);
+  }
+
+  /**
+   * Boot auto-registers any {@code Filter} bean into the servlet chain. We want the rate limiter
+   * only where it is placed above (inside the security chain, after CORS), so the automatic
+   * registration is switched off to avoid running it twice in the wrong position.
+   */
+  @Bean
+  FilterRegistrationBean<RateLimitFilter> rateLimitFilterRegistration(RateLimitFilter filter) {
+    FilterRegistrationBean<RateLimitFilter> registration = new FilterRegistrationBean<>(filter);
+    registration.setEnabled(false);
+    return registration;
   }
 
   @Bean

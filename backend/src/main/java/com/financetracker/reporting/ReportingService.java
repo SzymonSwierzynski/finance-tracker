@@ -12,6 +12,8 @@ import com.financetracker.settings.SettingsService;
 import com.financetracker.transaction.TransactionRepository;
 import com.financetracker.transaction.TransactionRepository.CategorySumRow;
 import com.financetracker.transaction.TransactionRepository.SummaryRow;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -54,7 +56,7 @@ public class ReportingService {
     long incomeMinor = 0L;
     long expenseMinor = 0L;
     for (SummaryRow row : rows) {
-      long base = row.getBaseMinor().setScale(0).longValueExact();
+      long base = baseMinorOf(row.getBaseMinor());
       if ("income".equals(row.getType())) {
         incomeMinor = base;
       } else if ("expense".equals(row.getType())) {
@@ -88,7 +90,7 @@ public class ReportingService {
     long count = 0L;
 
     for (CategorySumRow row : transactionRepository.sumByCategory(userId, from, to, kind.value())) {
-      long base = row.getBaseMinor().setScale(0).longValueExact();
+      long base = baseMinorOf(row.getBaseMinor());
       total += base;
       count += row.getTxnCount();
 
@@ -151,6 +153,17 @@ public class ReportingService {
     }
 
     return new BreakdownResponse(kind, from, to, currency, total, count, out);
+  }
+
+  /**
+   * Narrows a SQL aggregate to integer minor units. The queries already {@code round()} each row
+   * before summing, so the value arrives with scale 0 — but an unqualified {@code setScale(0)}
+   * would throw the moment that stopped being true. Rounding half-up explicitly keeps the failure
+   * mode a (correct) rounding rather than an ArithmeticException, and matches how the rest of the
+   * app converts to base.
+   */
+  private static long baseMinorOf(BigDecimal aggregate) {
+    return aggregate.setScale(0, RoundingMode.HALF_UP).longValueExact();
   }
 
   private static void requireRange(LocalDate from, LocalDate to) {

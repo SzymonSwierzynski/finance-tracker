@@ -92,6 +92,34 @@ export interface Settings {
   reportingCurrency: string
 }
 
+/**
+ * One user-maintained exchange rate into the reporting currency. `stale` means the rate was saved
+ * against a different base than the one in force now, so the backend will refuse to use it — the
+ * value is kept only so the user can see what to re-enter.
+ *
+ * `rateToBase` is a number, not minor units: rates are the one non-integer quantity in the model.
+ */
+export interface FxRate {
+  currency: string
+  rateToBase: number
+  baseCurrency: string
+  stale: boolean
+  source: string | null
+  lastFetchedAt: string | null
+  version: number
+}
+
+export interface FxRates {
+  baseCurrency: string
+  rates: FxRate[]
+}
+
+/** Declared by hand until the next `npm run gen:api` picks it up from the OpenAPI spec. */
+export interface UpsertFxRateRequest {
+  rateToBase: number
+  source?: string
+}
+
 export interface Category {
   id: number
   name: string

@@ -84,7 +84,7 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
     mockMvc
         .perform(get("/api/v1/categories").header(HttpHeaders.AUTHORIZATION, bearer(user)))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.length()").value(22))
+        .andExpect(jsonPath("$.length()").value(26))
         .andExpect(jsonPath("$[?(@.name == 'Groceries')].kind").value("expense"));
   }
 

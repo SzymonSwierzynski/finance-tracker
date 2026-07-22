@@ -3,6 +3,7 @@ package com.financetracker.settings;
 import com.financetracker.common.error.NotFoundException;
 import com.financetracker.settings.dto.SettingsResponse;
 import com.financetracker.settings.dto.UpdateSettingsRequest;
+import java.time.Instant;
 import java.util.Locale;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +33,24 @@ public class SettingsService {
         .findById(userId)
         .map(s -> new SettingsResponse(s.getReportingCurrency()))
         .orElseThrow(() -> NotFoundException.of("Settings", userId));
+  }
+
+  /**
+   * Claims the one-time right to seed default categories for this user, marking it done. Returns
+   * false when seeding has already happened, so a user who deleted the defaults never gets them
+   * back. Runs inside the caller's transaction, so the claim and the seed commit together; a
+   * concurrent double-claim loses on the optimistic-lock version rather than double-seeding.
+   */
+  @Transactional
+  public boolean claimCategorySeeding(long userId) {
+    Settings settings =
+        repository.findById(userId).orElseThrow(() -> NotFoundException.of("Settings", userId));
+    if (settings.getCategoriesSeededAt() != null) {
+      return false;
+    }
+    settings.setCategoriesSeededAt(Instant.now());
+    repository.save(settings);
+    return true;
   }
 
   /** The user's base/reporting currency (ISO 4217). Used to resolve transaction rates to base. */

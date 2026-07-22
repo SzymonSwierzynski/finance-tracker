@@ -22,6 +22,7 @@ class CategoryIsolationTest extends AbstractIntegrationTest {
   @Test
   void createSubcategoryAndList() throws Exception {
     RegisteredUser user = register("cat-crud@example.com", "password123");
+    clearCategories(user);
     long food = createCategory(user, "{\"name\":\"Food\",\"kind\":\"expense\"}");
     createCategory(user, "{\"name\":\"Groceries\",\"kind\":\"expense\",\"parentId\":" + food + "}");
 
@@ -52,6 +53,7 @@ class CategoryIsolationTest extends AbstractIntegrationTest {
   @Test
   void subcategoryKindMustMatchParent() throws Exception {
     RegisteredUser user = register("cat-kind@example.com", "password123");
+    clearCategories(user);
     long salary = createCategory(user, "{\"name\":\"Salary\",\"kind\":\"income\"}");
     mockMvc
         .perform(
@@ -106,6 +108,7 @@ class CategoryIsolationTest extends AbstractIntegrationTest {
   @Test
   void categorizationRejectsKindMismatch() throws Exception {
     RegisteredUser user = register("cat-mismatch@example.com", "password123");
+    clearCategories(user);
     long account = createAccount(user);
     long incomeCat = createCategory(user, "{\"name\":\"Salary\",\"kind\":\"income\"}");
     // An expense transaction cannot take an income category.
@@ -127,6 +130,7 @@ class CategoryIsolationTest extends AbstractIntegrationTest {
   void usersCannotReachEachOthersCategories() throws Exception {
     RegisteredUser alice = register("cat-alice@example.com", "password123");
     RegisteredUser bob = register("cat-bob@example.com", "password123");
+    clearCategories(bob);
     long aliceCat = createCategory(alice, "{\"name\":\"Food\",\"kind\":\"expense\"}");
 
     mockMvc

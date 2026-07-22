@@ -1,9 +1,9 @@
 package com.financetracker.auth;
 
 import com.financetracker.auth.dto.UserProfileResponse;
+import com.financetracker.category.DefaultCategorySeeder;
 import com.financetracker.common.error.ConflictException;
 import com.financetracker.common.error.NotFoundException;
-import com.financetracker.category.DefaultCategorySeeder;
 import com.financetracker.config.AuthProperties;
 import com.financetracker.settings.SettingsService;
 import java.nio.charset.StandardCharsets;
@@ -13,6 +13,8 @@ import java.time.Instant;
 import java.util.Base64;
 import java.util.HexFormat;
 import java.util.Locale;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -24,6 +26,9 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 public class AuthService {
+
+  /** Security-event log (§5: log auth outcomes, never the tokens or passwords themselves). */
+  private static final Logger log = LoggerFactory.getLogger(AuthService.class);
 
   private static final int REFRESH_TOKEN_BYTES = 32;
 
@@ -67,7 +72,8 @@ public class AuthService {
     User saved = userRepository.save(user);
 
     settingsService.createDefault(saved.getId());
-    defaultCategorySeeder.seedIfEmpty(saved.getId());
+    defaultCategorySeeder.seedIfNeeded(saved.getId());
+    log.info("Registered user id={}", saved.getId());
     return issueTokens(saved);
   }
 
@@ -78,16 +84,24 @@ public class AuthService {
             .findByEmail(normalizeEmail(email))
             .orElseThrow(() -> new BadCredentialsException("Invalid email or password"));
     if (!passwordEncoder.matches(rawPassword, user.getPasswordHash())) {
+      log.info("Failed login for user id={}", user.getId());
       throw new BadCredentialsException("Invalid email or password");
     }
     if (user.getStatus() != UserStatus.ACTIVE) {
       throw new BadCredentialsException("Account is disabled");
     }
-    defaultCategorySeeder.seedIfEmpty(user.getId());
+    // Backfill for accounts created before seeding existed. Guarded by a persisted flag, so it is
+    // genuinely once-per-user and never resurrects defaults the user deliberately deleted.
+    defaultCategorySeeder.seedIfNeeded(user.getId());
     return issueTokens(user);
   }
 
-  @Transactional
+  /**
+   * {@code noRollbackFor}: a bad refresh token is an expected outcome here, not a data error — and
+   * the reuse branch below deliberately WRITES (revoking every session) before throwing. The
+   * default rollback-on-RuntimeException would undo exactly the revocation we need to persist.
+   */
+  @Transactional(noRollbackFor = BadCredentialsException.class)
   public AuthResult refresh(String rawRefreshToken) {
     if (rawRefreshToken == null || rawRefreshToken.isBlank()) {
       throw new BadCredentialsException("Missing refresh token");
@@ -96,11 +110,28 @@ public class AuthService {
         refreshTokenRepository
             .findByTokenHash(sha256(rawRefreshToken))
             .orElseThrow(() -> new BadCredentialsException("Invalid refresh token"));
-    if (!token.isActive(Instant.now())) {
-      throw new BadCredentialsException("Refresh token is expired or revoked");
+
+    Instant now = Instant.now();
+
+    // Reuse detection. Refresh tokens are single-use, so a token we already rotated away being
+    // presented again means the value leaked (replay of a stolen cookie, or a stolen cookie racing
+    // the legitimate client). We cannot tell attacker from victim, so we end every session for the
+    // user and force a fresh login. Revoked rows are retained until expiry precisely for this
+    // check.
+    if (token.getRevokedAt() != null) {
+      int killed = refreshTokenRepository.revokeAllForUser(token.getUserId(), now);
+      log.warn(
+          "Refresh token reuse detected for user id={}; revoked {} active session(s)",
+          token.getUserId(),
+          killed);
+      throw new BadCredentialsException("Refresh token reuse detected; all sessions were revoked");
     }
+    if (!token.getExpiresAt().isAfter(now)) {
+      throw new BadCredentialsException("Refresh token is expired");
+    }
+
     // Rotate: the presented token is single-use.
-    token.setRevokedAt(Instant.now());
+    token.setRevokedAt(now);
     refreshTokenRepository.save(token);
 
     User user =
