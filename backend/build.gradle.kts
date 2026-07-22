@@ -88,6 +88,7 @@ val coverageExclusions =
         "com/financetracker/rule/Rule.class",
         "com/financetracker/importing/ImportBatch.class",
         "com/financetracker/importing/ImportProfile.class",
+        "com/financetracker/recurring/RecurringTransaction.class",
     )
 
 tasks.jacocoTestReport {
