@@ -273,6 +273,28 @@ export interface CashflowResponse {
   buckets: CashflowBucket[]
 }
 
+export interface CategorySeries {
+  categoryId: number | null
+  name: string
+  color: string
+}
+
+export interface CategoryTrendBucket {
+  period: string
+  /** series key (category id as text, or "uncategorized") -> base minor units */
+  amounts: Record<string, number>
+}
+
+export interface CategoryTrendResponse {
+  from: string
+  to: string
+  interval: string
+  currency: string
+  kind: CategoryKind
+  series: CategorySeries[]
+  buckets: CategoryTrendBucket[]
+}
+
 export const ACCOUNT_TYPES: AccountType[] = ['checking', 'savings', 'cash', 'credit']
 export const TRANSACTION_TYPES: TransactionType[] = ['expense', 'income', 'transfer']
 export const CATEGORY_KINDS: CategoryKind[] = ['expense', 'income']

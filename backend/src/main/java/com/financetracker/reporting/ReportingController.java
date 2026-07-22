@@ -5,6 +5,7 @@ import com.financetracker.common.security.AuthUser;
 import com.financetracker.common.security.CurrentUser;
 import com.financetracker.reporting.dto.BreakdownResponse;
 import com.financetracker.reporting.dto.CashflowResponse;
+import com.financetracker.reporting.dto.CategoryTrendResponse;
 import com.financetracker.reporting.dto.SummaryResponse;
 import com.financetracker.reporting.dto.TrendResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -60,5 +61,15 @@ public class ReportingController {
       @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
       @RequestParam(defaultValue = "month") String interval) {
     return reportingService.cashflow(user.id(), from, to, interval);
+  }
+
+  @GetMapping("/category-trend")
+  public CategoryTrendResponse categoryTrend(
+      @CurrentUser AuthUser user,
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+      @RequestParam(defaultValue = "month") String interval,
+      @RequestParam(defaultValue = "expense") CategoryKind kind) {
+    return reportingService.categoryTrend(user.id(), from, to, interval, kind);
   }
 }

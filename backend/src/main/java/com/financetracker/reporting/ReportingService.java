@@ -9,12 +9,16 @@ import com.financetracker.reporting.dto.BreakdownResponse.BreakdownChild;
 import com.financetracker.reporting.dto.BreakdownResponse.BreakdownParent;
 import com.financetracker.reporting.dto.CashflowResponse;
 import com.financetracker.reporting.dto.CashflowResponse.CashflowBucket;
+import com.financetracker.reporting.dto.CategoryTrendResponse;
+import com.financetracker.reporting.dto.CategoryTrendResponse.CategorySeries;
+import com.financetracker.reporting.dto.CategoryTrendResponse.CategoryTrendBucket;
 import com.financetracker.reporting.dto.SummaryResponse;
 import com.financetracker.reporting.dto.TrendResponse;
 import com.financetracker.reporting.dto.TrendResponse.TrendBucket;
 import com.financetracker.settings.SettingsService;
 import com.financetracker.transaction.TransactionRepository;
 import com.financetracker.transaction.TransactionRepository.CategorySumRow;
+import com.financetracker.transaction.TransactionRepository.PeriodCategorySumRow;
 import com.financetracker.transaction.TransactionRepository.PeriodSumRow;
 import com.financetracker.transaction.TransactionRepository.SummaryRow;
 import java.math.BigDecimal;
@@ -22,6 +26,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.temporal.IsoFields;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -219,6 +224,70 @@ public class ReportingService {
     return byPeriod;
   }
 
+  /** Expense (or income) over time stacked by top-level category, for a stacked chart. */
+  @Transactional(readOnly = true)
+  public CategoryTrendResponse categoryTrend(
+      long userId, LocalDate from, LocalDate to, String interval, CategoryKind kind) {
+    requireRange(from, to);
+    Interval iv = Interval.parse(interval);
+    Map<Long, Category> byId =
+        categoryRepository.findByUserIdOrderByNameAsc(userId).stream()
+            .collect(Collectors.toMap(Category::getId, Function.identity()));
+
+    Map<String, Map<String, Long>> amountsByPeriod = new TreeMap<>();
+    for (LocalDate d = from; !d.isAfter(to); d = d.plusDays(1)) {
+      amountsByPeriod.computeIfAbsent(iv.key(d), k -> new HashMap<>());
+    }
+
+    Map<String, SeriesAcc> seriesByKey = new LinkedHashMap<>();
+    for (PeriodCategorySumRow row :
+        transactionRepository.sumByPeriodAndCategory(userId, from, to, iv.fmt, kind.value())) {
+      long base = baseMinorOf(row.getBaseMinor());
+      Category cat = row.getCategoryId() == null ? null : byId.get(row.getCategoryId());
+
+      String key;
+      Long seriesCatId;
+      String name;
+      String color;
+      if (cat == null) {
+        key = "uncategorized";
+        seriesCatId = null;
+        name = "Uncategorized";
+        color = UNCATEGORIZED_COLOR;
+      } else if (cat.getParentId() == null) {
+        seriesCatId = cat.getId();
+        key = String.valueOf(seriesCatId);
+        name = cat.getName();
+        color = cat.getColor();
+      } else {
+        Category parent = byId.get(cat.getParentId());
+        seriesCatId = parent != null ? parent.getId() : cat.getParentId();
+        key = String.valueOf(seriesCatId);
+        name = parent != null ? parent.getName() : "Unknown";
+        color = parent != null ? parent.getColor() : UNCATEGORIZED_COLOR;
+      }
+
+      SeriesAcc acc =
+          seriesByKey.computeIfAbsent(key, k -> new SeriesAcc(seriesCatId, name, color));
+      acc.total += base;
+      amountsByPeriod
+          .computeIfAbsent(row.getPeriod(), k -> new HashMap<>())
+          .merge(key, base, Long::sum);
+    }
+
+    List<CategorySeries> series =
+        seriesByKey.values().stream()
+            .sorted((a, b) -> Long.compare(b.total, a.total))
+            .map(a -> new CategorySeries(a.categoryId, a.name, a.color))
+            .toList();
+    List<CategoryTrendBucket> buckets = new ArrayList<>();
+    for (Map.Entry<String, Map<String, Long>> e : amountsByPeriod.entrySet()) {
+      buckets.add(new CategoryTrendBucket(e.getKey(), e.getValue()));
+    }
+    return new CategoryTrendResponse(
+        from, to, iv.value, settingsService.reportingCurrency(userId), kind, series, buckets);
+  }
+
   /**
    * Narrows a SQL aggregate to integer minor units. The queries already {@code round()} each row
    * before summing, so the value arrives with scale 0 — but an unqualified {@code setScale(0)}
@@ -257,6 +326,20 @@ public class ReportingService {
   }
 
   private record ChildAcc(Long id, String name, long base) {}
+
+  /** Mutable accumulator for a category-trend series (top-level category) while folding. */
+  private static final class SeriesAcc {
+    private final Long categoryId;
+    private final String name;
+    private final String color;
+    private long total;
+
+    private SeriesAcc(Long categoryId, String name, String color) {
+      this.categoryId = categoryId;
+      this.name = name;
+      this.color = color;
+    }
+  }
 
   /** Time-bucket granularity, its Postgres {@code to_char} pattern, and a matching Java key. */
   private enum Interval {

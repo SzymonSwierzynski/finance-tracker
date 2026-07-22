@@ -1,6 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/api'
-import type { Breakdown, CashflowResponse, CategoryKind, Summary, TrendResponse } from '@/api'
+import type {
+  Breakdown,
+  CashflowResponse,
+  CategoryKind,
+  CategoryTrendResponse,
+  Summary,
+  TrendResponse,
+} from '@/api'
 
 export const reportKeys = {
   summary: (from: string, to: string) => ['reports', 'summary', { from, to }] as const,
@@ -10,6 +17,8 @@ export const reportKeys = {
     ['reports', 'trend', { from, to, interval }] as const,
   cashflow: (from: string, to: string, interval: string) =>
     ['reports', 'cashflow', { from, to, interval }] as const,
+  categoryTrend: (from: string, to: string, interval: string, kind: CategoryKind) =>
+    ['reports', 'category-trend', { from, to, interval, kind }] as const,
 }
 
 export function useSummary(from: string, to: string) {
@@ -34,10 +43,28 @@ export function useTrend(from: string, to: string, interval: string) {
   })
 }
 
-export function useCashflow(from: string, to: string, interval: string) {
+export function useCashflow(from: string, to: string, interval: string, enabled = true) {
   return useQuery({
+    enabled,
     queryKey: reportKeys.cashflow(from, to, interval),
     queryFn: () =>
       api.get<CashflowResponse>('/api/v1/reports/cashflow', { params: { from, to, interval } }),
+  })
+}
+
+export function useCategoryTrend(
+  from: string,
+  to: string,
+  interval: string,
+  kind: CategoryKind,
+  enabled = true,
+) {
+  return useQuery({
+    enabled,
+    queryKey: reportKeys.categoryTrend(from, to, interval, kind),
+    queryFn: () =>
+      api.get<CategoryTrendResponse>('/api/v1/reports/category-trend', {
+        params: { from, to, interval, kind },
+      }),
   })
 }

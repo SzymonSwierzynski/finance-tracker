@@ -28,6 +28,7 @@ export function TransactionsPage() {
   const [type, setType] = useState('')
   const [categoryId, setCategoryId] = useState(searchParams.get('categoryId') ?? '')
   const [q, setQ] = useState('')
+  const [sort, setSort] = useState('')
   const [page, setPage] = useState(0)
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Transaction | undefined>(undefined)
@@ -39,9 +40,21 @@ export function TransactionsPage() {
     type: (type || undefined) as TransactionType | undefined,
     categoryId: categoryId ? Number(categoryId) : undefined,
     q: q || undefined,
+    sort: sort || undefined,
     page,
     size: PAGE_SIZE,
   }
+
+  const effectiveSort = sort || 'date,desc'
+  const [sortField, sortDir] = effectiveSort.split(',')
+  const toggleSort = (field: 'date' | 'amount') => {
+    setPage(0)
+    setSort((prev) => {
+      const [f, d] = (prev || 'date,desc').split(',')
+      return f === field ? `${field},${d === 'asc' ? 'desc' : 'asc'}` : `${field},desc`
+    })
+  }
+  const sortArrow = (field: string) => (sortField === field ? (sortDir === 'asc' ? '↑' : '↓') : '')
 
   const { data, isLoading, isError, refetch } = useTransactions(filters)
   const { data: accounts } = useAccounts(true)
@@ -150,10 +163,24 @@ export function TransactionsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
-                  <th className="px-4 py-3 font-medium">{t('transactions.date')}</th>
+                  <th className="px-4 py-3 font-medium">
+                    <button
+                      className="inline-flex items-center gap-1 hover:text-slate-700"
+                      onClick={() => toggleSort('date')}
+                    >
+                      {t('transactions.date')} <span className="text-slate-400">{sortArrow('date')}</span>
+                    </button>
+                  </th>
                   <th className="px-4 py-3 font-medium">{t('transactions.description')}</th>
                   <th className="px-4 py-3 font-medium">{t('transactions.account')}</th>
-                  <th className="px-4 py-3 text-right font-medium">{t('transactions.amount')}</th>
+                  <th className="px-4 py-3 text-right font-medium">
+                    <button
+                      className="ml-auto inline-flex items-center gap-1 hover:text-slate-700"
+                      onClick={() => toggleSort('amount')}
+                    >
+                      {t('transactions.amount')} <span className="text-slate-400">{sortArrow('amount')}</span>
+                    </button>
+                  </th>
                   <th className="px-4 py-3 text-right font-medium">{t('transactions.baseValue')}</th>
                   <th className="px-4 py-3" />
                 </tr>

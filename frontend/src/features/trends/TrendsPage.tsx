@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Bar,
+  BarChart,
   CartesianGrid,
   ComposedChart,
   Legend,
@@ -11,18 +12,25 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import type { TrendInterval } from '@/api'
+import type { CategorySeries, TrendInterval } from '@/api'
 import { Button, Card, CenteredState, Input, PageHeader, Skeleton } from '@/components/primitives'
 import { useFormatMoney } from '@/components/Money'
 import { formatDate, presetRange, todayIso } from '@/lib/date'
 import type { DateRange, PeriodPresetId } from '@/lib/date'
 import { toMajorNumber } from '@/lib/money'
 import { localeForLanguage } from '@/lib/i18n'
-import { useCashflow } from '@/features/reports/hooks'
+import { useCashflow, useCategoryTrend } from '@/features/reports/hooks'
 
 const PRESETS: PeriodPresetId[] = ['thisMonth', 'lastMonth', 'thisYear', 'custom']
 const INTERVALS: TrendInterval[] = ['month', 'week']
+const VIEWS = ['total', 'category'] as const
 const COLORS = { income: '#22c55e', expense: '#ef4444', net: '#4f46e5' }
+
+const pill = (active: boolean) =>
+  `rounded-md px-3 py-1.5 text-sm font-medium ${active ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`
+
+const seriesKey = (s: CategorySeries) =>
+  s.categoryId != null ? String(s.categoryId) : 'uncategorized'
 
 export function TrendsPage() {
   const { t, i18n } = useTranslation()
@@ -32,24 +40,38 @@ export function TrendsPage() {
   const [preset, setPreset] = useState<PeriodPresetId>('thisYear')
   const [range, setRange] = useState<DateRange>(() => presetRange('thisYear'))
   const [grouping, setGrouping] = useState<TrendInterval>('month')
+  const [view, setView] = useState<(typeof VIEWS)[number]>('total')
 
   const onPreset = (p: PeriodPresetId) => {
     setPreset(p)
     if (p !== 'custom') setRange(presetRange(p))
   }
 
-  const { data, isLoading, isError, refetch } = useCashflow(range.from, range.to, grouping)
-  const currency = data?.currency ?? 'PLN'
+  // Only the active view fetches; both share range + grouping so switching is instant once cached.
+  const cashflow = useCashflow(range.from, range.to, grouping, view === 'total')
+  const catTrend = useCategoryTrend(range.from, range.to, grouping, 'expense', view === 'category')
+  const active = view === 'total' ? cashflow : catTrend
+  const currency =
+    (view === 'total' ? cashflow.data?.currency : catTrend.data?.currency) ?? 'PLN'
+  const money = (major: number) => formatMoney(Math.round(major * 100), currency)
 
-  // running net (cumulative) is the line; income/expense are grouped bars.
-  const chartData = (data?.buckets ?? []).map((b) => ({
+  const totalData = (cashflow.data?.buckets ?? []).map((b) => ({
     period: b.period,
     income: toMajorNumber(b.incomeMinor),
     expense: toMajorNumber(b.expenseMinor),
     net: toMajorNumber(b.runningNetMinor),
   }))
-  const hasActivity = chartData.some((d) => d.income !== 0 || d.expense !== 0)
-  const money = (major: number) => formatMoney(Math.round(major * 100), currency)
+  const catSeries = catTrend.data?.series ?? []
+  const catData = (catTrend.data?.buckets ?? []).map((b) => {
+    const row: Record<string, string | number> = { period: b.period }
+    for (const s of catSeries) row[seriesKey(s)] = toMajorNumber(b.amounts[seriesKey(s)] ?? 0)
+    return row
+  })
+
+  const hasActivity =
+    view === 'total'
+      ? totalData.some((d) => d.income !== 0 || d.expense !== 0)
+      : catSeries.length > 0
 
   return (
     <>
@@ -57,16 +79,21 @@ export function TrendsPage() {
         title={t('trends.title')}
         subtitle={`${formatDate(range.from, locale)} – ${formatDate(range.to, locale)}`}
         actions={
-          <div className="flex rounded-lg bg-slate-100 p-0.5">
-            {INTERVALS.map((iv) => (
-              <button
-                key={iv}
-                onClick={() => setGrouping(iv)}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium ${grouping === iv ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
-              >
-                {t(`trends.${iv}`)}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex rounded-lg bg-slate-100 p-0.5">
+              {VIEWS.map((v) => (
+                <button key={v} onClick={() => setView(v)} className={pill(view === v)}>
+                  {t(`trends.${v}`)}
+                </button>
+              ))}
+            </div>
+            <div className="flex rounded-lg bg-slate-100 p-0.5">
+              {INTERVALS.map((iv) => (
+                <button key={iv} onClick={() => setGrouping(iv)} className={pill(grouping === iv)}>
+                  {t(`trends.${iv}`)}
+                </button>
+              ))}
+            </div>
           </div>
         }
       />
@@ -102,14 +129,14 @@ export function TrendsPage() {
         )}
       </div>
 
-      {isLoading ? (
+      {active.isLoading ? (
         <Card className="p-6">
           <Skeleton className="h-80 w-full" />
         </Card>
-      ) : isError ? (
+      ) : active.isError ? (
         <CenteredState
           title={t('errors.loadFailed')}
-          action={<Button onClick={() => void refetch()}>{t('common.retry')}</Button>}
+          action={<Button onClick={() => void active.refetch()}>{t('common.retry')}</Button>}
         />
       ) : !hasActivity ? (
         <CenteredState title={t('trends.empty')} />
@@ -117,22 +144,37 @@ export function TrendsPage() {
         <Card className="p-5">
           <div className="h-96">
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={chartData} margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="period" tick={{ fontSize: 12 }} />
-                <YAxis
-                  tick={{ fontSize: 12 }}
-                  width={80}
-                  tickFormatter={(v) => money(Number(v))}
-                />
-                <Tooltip
-                  formatter={(value, name) => [money(Number(value)), t(`trends.${String(name)}`)]}
-                />
-                <Legend formatter={(name) => t(`trends.${String(name)}`)} />
-                <Bar dataKey="income" fill={COLORS.income} radius={[3, 3, 0, 0]} />
-                <Bar dataKey="expense" fill={COLORS.expense} radius={[3, 3, 0, 0]} />
-                <Line dataKey="net" stroke={COLORS.net} strokeWidth={2} dot={false} />
-              </ComposedChart>
+              {view === 'total' ? (
+                <ComposedChart data={totalData} margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="period" tick={{ fontSize: 12 }} />
+                  <YAxis tick={{ fontSize: 12 }} width={80} tickFormatter={(v) => money(Number(v))} />
+                  <Tooltip
+                    formatter={(value, name) => [money(Number(value)), t(`trends.${String(name)}`)]}
+                  />
+                  <Legend formatter={(name) => t(`trends.${String(name)}`)} />
+                  <Bar dataKey="income" fill={COLORS.income} radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="expense" fill={COLORS.expense} radius={[3, 3, 0, 0]} />
+                  <Line dataKey="net" stroke={COLORS.net} strokeWidth={2} dot={false} />
+                </ComposedChart>
+              ) : (
+                <BarChart data={catData} margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="period" tick={{ fontSize: 12 }} />
+                  <YAxis tick={{ fontSize: 12 }} width={80} tickFormatter={(v) => money(Number(v))} />
+                  <Tooltip formatter={(value) => money(Number(value))} />
+                  <Legend />
+                  {catSeries.map((s) => (
+                    <Bar
+                      key={seriesKey(s)}
+                      dataKey={seriesKey(s)}
+                      name={s.categoryId == null ? t('breakdown.uncategorized') : s.name}
+                      stackId="a"
+                      fill={s.color}
+                    />
+                  ))}
+                </BarChart>
+              )}
             </ResponsiveContainer>
           </div>
         </Card>

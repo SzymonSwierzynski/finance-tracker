@@ -128,6 +128,31 @@ public interface TransactionRepository
       @Param("to") LocalDate to,
       @Param("fmt") String fmt);
 
+  /**
+   * Base totals grouped by time bucket and category (null = uncategorized) for one kind, over a
+   * date range. Folded into per-period category stacks (subcategories rolled to parents) in tested
+   * Java. Groups by ordinal so {@code :fmt} appears once (see {@link #sumByPeriod}).
+   */
+  @Query(
+      value =
+          """
+          SELECT to_char(t.date, cast(:fmt as text)) AS period,
+                 t.category_id AS categoryId,
+                 COALESCE(SUM(round(t.amount_minor * t.rate_to_base)), 0) AS baseMinor
+          FROM transactions t
+          WHERE t.user_id = :userId
+            AND t.date BETWEEN :from AND :to
+            AND t.type = :type
+          GROUP BY 1, 2
+          """,
+      nativeQuery = true)
+  List<PeriodCategorySumRow> sumByPeriodAndCategory(
+      @Param("userId") long userId,
+      @Param("from") LocalDate from,
+      @Param("to") LocalDate to,
+      @Param("fmt") String fmt,
+      @Param("type") String type);
+
   /** Native projection for {@link #summarize}. */
   interface SummaryRow {
     String getType();
@@ -149,6 +174,15 @@ public interface TransactionRepository
     String getPeriod();
 
     String getType();
+
+    BigDecimal getBaseMinor();
+  }
+
+  /** Projection for {@link #sumByPeriodAndCategory}; {@code categoryId} null = uncategorized. */
+  interface PeriodCategorySumRow {
+    String getPeriod();
+
+    Long getCategoryId();
 
     BigDecimal getBaseMinor();
   }

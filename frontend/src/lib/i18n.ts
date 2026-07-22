@@ -73,8 +73,8 @@ const resources = {
         allCategories: 'All categories', viewTransactions: 'View transactions', empty: 'No spending in this period yet.',
       },
       trends: {
-        title: 'Trends', month: 'Monthly', week: 'Weekly', income: 'Income', expense: 'Expense',
-        net: 'Running net', empty: 'No activity in this period yet.',
+        title: 'Trends', total: 'Total', category: 'By category', month: 'Monthly', week: 'Weekly',
+        income: 'Income', expense: 'Expense', net: 'Running net', empty: 'No activity in this period yet.',
       },
       settings: {
         title: 'Settings', reportingCurrency: 'Reporting currency',
@@ -160,8 +160,8 @@ const resources = {
         allCategories: 'Wszystkie kategorie', viewTransactions: 'Pokaż transakcje', empty: 'Brak wydatków w tym okresie.',
       },
       trends: {
-        title: 'Trendy', month: 'Miesięcznie', week: 'Tygodniowo', income: 'Przychody', expense: 'Wydatki',
-        net: 'Saldo skumulowane', empty: 'Brak aktywności w tym okresie.',
+        title: 'Trendy', total: 'Razem', category: 'Wg kategorii', month: 'Miesięcznie', week: 'Tygodniowo',
+        income: 'Przychody', expense: 'Wydatki', net: 'Saldo skumulowane', empty: 'Brak aktywności w tym okresie.',
       },
       settings: {
         title: 'Ustawienia', reportingCurrency: 'Waluta raportowania',
