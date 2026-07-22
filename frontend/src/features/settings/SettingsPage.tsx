@@ -4,6 +4,7 @@ import { ApiError } from '@/api'
 import { Button, Card, CenteredState, Field, Input, PageHeader, Skeleton } from '@/components/primitives'
 import { useToast } from '@/components/Toast'
 import { FxRatesCard } from './FxRatesCard'
+import { ExportCard } from '@/features/export/ExportCard'
 import { useSettings, useUpdateSettings } from './hooks'
 
 export function SettingsPage() {
@@ -62,6 +63,7 @@ export function SettingsPage() {
         </Card>
       )}
       <FxRatesCard />
+      <ExportCard />
     </div>
   )
 }

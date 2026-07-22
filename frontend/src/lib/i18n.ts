@@ -92,6 +92,11 @@ const resources = {
         removeConfirm: 'Remove the rate for {{currency}}?',
         sameAsBase: 'This is already your reporting currency.',
       },
+      export: {
+        title: 'Export data',
+        hint: 'Download all your transactions. Money stays as integer minor units, so a CSV round-trips losslessly.',
+        csv: 'Export CSV', json: 'Export JSON',
+      },
     },
   },
   pl: {
@@ -178,6 +183,11 @@ const resources = {
         staleHint: 'Ten kurs zapisano względem {{base}}, która nie jest już walutą raportowania. Wprowadź go ponownie przed dodaniem transakcji w tej walucie.',
         removeConfirm: 'Usunąć kurs dla {{currency}}?',
         sameAsBase: 'To już jest Twoja waluta raportowania.',
+      },
+      export: {
+        title: 'Eksport danych',
+        hint: 'Pobierz wszystkie transakcje. Kwoty pozostają liczbami całkowitymi (grosze), więc CSV można bezstratnie zaimportować.',
+        csv: 'Eksportuj CSV', json: 'Eksportuj JSON',
       },
     },
   },
