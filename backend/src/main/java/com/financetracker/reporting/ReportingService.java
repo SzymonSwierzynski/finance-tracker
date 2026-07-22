@@ -7,19 +7,27 @@ import com.financetracker.common.error.UnprocessableEntityException;
 import com.financetracker.reporting.dto.BreakdownResponse;
 import com.financetracker.reporting.dto.BreakdownResponse.BreakdownChild;
 import com.financetracker.reporting.dto.BreakdownResponse.BreakdownParent;
+import com.financetracker.reporting.dto.CashflowResponse;
+import com.financetracker.reporting.dto.CashflowResponse.CashflowBucket;
 import com.financetracker.reporting.dto.SummaryResponse;
+import com.financetracker.reporting.dto.TrendResponse;
+import com.financetracker.reporting.dto.TrendResponse.TrendBucket;
 import com.financetracker.settings.SettingsService;
 import com.financetracker.transaction.TransactionRepository;
 import com.financetracker.transaction.TransactionRepository.CategorySumRow;
+import com.financetracker.transaction.TransactionRepository.PeriodSumRow;
 import com.financetracker.transaction.TransactionRepository.SummaryRow;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.temporal.IsoFields;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
@@ -156,6 +164,62 @@ public class ReportingService {
   }
 
   /**
+   * Income + expense per time bucket over the range (zero-filled), for a spending-over-time chart.
+   */
+  @Transactional(readOnly = true)
+  public TrendResponse trend(long userId, LocalDate from, LocalDate to, String interval) {
+    requireRange(from, to);
+    Interval iv = Interval.parse(interval);
+    List<TrendBucket> buckets = new ArrayList<>();
+    for (Map.Entry<String, long[]> e : incomeExpenseByPeriod(userId, from, to, iv).entrySet()) {
+      buckets.add(new TrendBucket(e.getKey(), e.getValue()[0], e.getValue()[1]));
+    }
+    return new TrendResponse(
+        from, to, iv.value, settingsService.reportingCurrency(userId), buckets);
+  }
+
+  /** Income vs expense per time bucket with a running net accumulated across the range. */
+  @Transactional(readOnly = true)
+  public CashflowResponse cashflow(long userId, LocalDate from, LocalDate to, String interval) {
+    requireRange(from, to);
+    Interval iv = Interval.parse(interval);
+    List<CashflowBucket> buckets = new ArrayList<>();
+    long running = 0L;
+    for (Map.Entry<String, long[]> e : incomeExpenseByPeriod(userId, from, to, iv).entrySet()) {
+      long income = e.getValue()[0];
+      long expense = e.getValue()[1];
+      long net = income - expense;
+      running += net;
+      buckets.add(new CashflowBucket(e.getKey(), income, expense, net, running));
+    }
+    return new CashflowResponse(
+        from, to, iv.value, settingsService.reportingCurrency(userId), buckets);
+  }
+
+  /**
+   * period -> [income, expense] in base minor units, zero-filled across [from, to] and
+   * chronological (TreeMap). Every calendar day seeds its bucket key so gaps render as zero; the
+   * SQL fills the non-empty ones.
+   */
+  private Map<String, long[]> incomeExpenseByPeriod(
+      long userId, LocalDate from, LocalDate to, Interval iv) {
+    Map<String, long[]> byPeriod = new TreeMap<>();
+    for (LocalDate d = from; !d.isAfter(to); d = d.plusDays(1)) {
+      byPeriod.computeIfAbsent(iv.key(d), k -> new long[2]);
+    }
+    for (PeriodSumRow row : transactionRepository.sumByPeriod(userId, from, to, iv.fmt)) {
+      long[] slot = byPeriod.computeIfAbsent(row.getPeriod(), k -> new long[2]);
+      long base = baseMinorOf(row.getBaseMinor());
+      if ("income".equals(row.getType())) {
+        slot[0] = base;
+      } else if ("expense".equals(row.getType())) {
+        slot[1] = base;
+      }
+    }
+    return byPeriod;
+  }
+
+  /**
    * Narrows a SQL aggregate to integer minor units. The queries already {@code round()} each row
    * before summing, so the value arrives with scale 0 — but an unqualified {@code setScale(0)}
    * would throw the moment that stopped being true. Rounding half-up explicitly keeps the failure
@@ -193,4 +257,40 @@ public class ReportingService {
   }
 
   private record ChildAcc(Long id, String name, long base) {}
+
+  /** Time-bucket granularity, its Postgres {@code to_char} pattern, and a matching Java key. */
+  private enum Interval {
+    MONTH("month", "YYYY-MM"),
+    WEEK("week", "IYYY-IW");
+
+    private final String value;
+    private final String fmt;
+
+    Interval(String value, String fmt) {
+      this.value = value;
+      this.fmt = fmt;
+    }
+
+    static Interval parse(String interval) {
+      if (interval == null || interval.isBlank() || interval.equalsIgnoreCase("month")) {
+        return MONTH;
+      }
+      if (interval.equalsIgnoreCase("week")) {
+        return WEEK;
+      }
+      throw new UnprocessableEntityException("interval must be 'month' or 'week'.");
+    }
+
+    /** The bucket key for a date, matching what {@code to_char(date, fmt)} produces in SQL. */
+    String key(LocalDate d) {
+      if (this == WEEK) {
+        return String.format(
+            Locale.ROOT,
+            "%04d-%02d",
+            d.get(IsoFields.WEEK_BASED_YEAR),
+            d.get(IsoFields.WEEK_OF_WEEK_BASED_YEAR));
+      }
+      return String.format(Locale.ROOT, "%04d-%02d", d.getYear(), d.getMonthValue());
+    }
+  }
 }

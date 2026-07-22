@@ -100,6 +100,34 @@ public interface TransactionRepository
       @Param("to") LocalDate to,
       @Param("type") String type);
 
+  /**
+   * Base totals grouped by time bucket and type (income/expense) over a date range. {@code fmt} is
+   * a Postgres {@code to_char} pattern chosen by the interval ({@code 'YYYY-MM'} month, {@code
+   * 'IYYY-IW'} ISO week). Empty buckets are absent — the service zero-fills the range.
+   *
+   * <p>Groups by ordinal ({@code GROUP BY 1, 2}) so {@code :fmt} appears exactly once: referenced
+   * twice, Hibernate emits two positional params and Postgres then sees the SELECT and GROUP BY
+   * {@code to_char} expressions as different and rejects the grouping.
+   */
+  @Query(
+      value =
+          """
+          SELECT to_char(t.date, cast(:fmt as text)) AS period,
+                 t.type AS type,
+                 COALESCE(SUM(round(t.amount_minor * t.rate_to_base)), 0) AS baseMinor
+          FROM transactions t
+          WHERE t.user_id = :userId
+            AND t.date BETWEEN :from AND :to
+            AND t.type IN ('income', 'expense')
+          GROUP BY 1, 2
+          """,
+      nativeQuery = true)
+  List<PeriodSumRow> sumByPeriod(
+      @Param("userId") long userId,
+      @Param("from") LocalDate from,
+      @Param("to") LocalDate to,
+      @Param("fmt") String fmt);
+
   /** Native projection for {@link #summarize}. */
   interface SummaryRow {
     String getType();
@@ -114,5 +142,14 @@ public interface TransactionRepository
     BigDecimal getBaseMinor();
 
     long getTxnCount();
+  }
+
+  /** Projection for {@link #sumByPeriod}: base total per (period, type). */
+  interface PeriodSumRow {
+    String getPeriod();
+
+    String getType();
+
+    BigDecimal getBaseMinor();
   }
 }
