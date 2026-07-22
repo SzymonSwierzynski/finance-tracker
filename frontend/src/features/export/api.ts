@@ -33,4 +33,6 @@ async function download(path: string, filename: string, accept: string): Promise
 export const exportApi = {
   csv: () => download('/api/v1/export/transactions/csv', 'transactions.csv', 'text/csv'),
   json: () => download('/api/v1/export/transactions', 'transactions.json', 'application/json'),
+  // Full-data backup: reporting currency + accounts + categories + every transaction, round-trippable.
+  backup: () => download('/api/v1/export/backup', 'finance-backup.json', 'application/json'),
 }

@@ -7,12 +7,12 @@ import { exportApi } from './api'
 export function ExportCard() {
   const { t } = useTranslation()
   const toast = useToast()
-  const [busy, setBusy] = useState<'csv' | 'json' | null>(null)
+  const [busy, setBusy] = useState<'csv' | 'json' | 'backup' | null>(null)
 
-  const run = async (format: 'csv' | 'json') => {
+  const run = async (format: 'csv' | 'json' | 'backup') => {
     setBusy(format)
     try {
-      await (format === 'csv' ? exportApi.csv() : exportApi.json())
+      await exportApi[format]()
     } catch {
       toast.error(t('errors.generic'))
     } finally {
@@ -30,6 +30,9 @@ export function ExportCard() {
         </Button>
         <Button variant="secondary" loading={busy === 'json'} onClick={() => void run('json')}>
           {t('export.json')}
+        </Button>
+        <Button variant="secondary" loading={busy === 'backup'} onClick={() => void run('backup')}>
+          {t('export.backup')}
         </Button>
       </div>
     </Card>

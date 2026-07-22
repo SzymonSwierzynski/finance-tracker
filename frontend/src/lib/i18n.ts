@@ -102,8 +102,8 @@ const resources = {
       },
       export: {
         title: 'Export data',
-        hint: 'Download all your transactions. Money stays as integer minor units, so a CSV round-trips losslessly.',
-        csv: 'Export CSV', json: 'Export JSON',
+        hint: 'Export your transactions, or a full backup (accounts, categories and every transaction). Money stays as integer minor units, so it round-trips losslessly.',
+        csv: 'Transactions CSV', json: 'Transactions JSON', backup: 'Full backup',
       },
     },
   },
@@ -202,8 +202,8 @@ const resources = {
       },
       export: {
         title: 'Eksport danych',
-        hint: 'Pobierz wszystkie transakcje. Kwoty pozostają liczbami całkowitymi (grosze), więc CSV można bezstratnie zaimportować.',
-        csv: 'Eksportuj CSV', json: 'Eksportuj JSON',
+        hint: 'Wyeksportuj transakcje lub pełną kopię (konta, kategorie i wszystkie transakcje). Kwoty pozostają liczbami całkowitymi (grosze), więc dane można bezstratnie zaimportować.',
+        csv: 'Transakcje CSV', json: 'Transakcje JSON', backup: 'Pełna kopia',
       },
     },
   },
