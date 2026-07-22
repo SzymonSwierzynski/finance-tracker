@@ -10,11 +10,11 @@ const resources = {
   en: {
     translation: {
       app: { name: 'Finance Tracker', tagline: 'See where your money goes' },
-      nav: { dashboard: 'Dashboard', breakdown: 'Breakdown', accounts: 'Accounts', transactions: 'Transactions', categories: 'Categories', settings: 'Settings', logout: 'Log out' },
+      nav: { dashboard: 'Dashboard', breakdown: 'Breakdown', transactions: 'Transactions', import: 'Import', rules: 'Rules', accounts: 'Accounts', categories: 'Categories', settings: 'Settings', logout: 'Log out' },
       common: {
         save: 'Save', cancel: 'Cancel', create: 'Create', edit: 'Edit', delete: 'Delete',
         archive: 'Archive', loading: 'Loading…', retry: 'Retry', all: 'All', none: 'None',
-        confirm: 'Confirm', actions: 'Actions', optional: 'optional',
+        confirm: 'Confirm', actions: 'Actions', optional: 'optional', yes: 'Yes', no: 'No',
       },
       errors: { generic: 'Something went wrong.', loadFailed: 'Could not load data.', required: 'Required' },
       auth: {
@@ -47,6 +47,27 @@ const resources = {
         empty: 'No categories yet — add your first one.', deleteConfirm: 'Delete this category? Its subcategories are removed and affected transactions become uncategorized.',
         deleted: 'Category deleted ({{count}} transaction(s) uncategorized).',
       },
+      rules: {
+        title: 'Rules', subtitle: 'Auto-categorize transactions whose description matches a pattern.',
+        new: 'New rule', pattern: 'Pattern', category: 'Category', priority: 'Priority',
+        apply: 'Apply to uncategorized', applied: '{{categorized}} of {{scanned}} transaction(s) categorized.',
+        patternHint: 'Matched as a case-insensitive substring of the description. Higher priority wins.',
+        empty: 'No rules yet — add one to auto-categorize transactions.', deleteConfirm: 'Delete this rule?',
+      },
+      import: {
+        title: 'Import', subtitle: 'Import a CSV export from your bank.',
+        account: 'Account', file: 'CSV file', next: 'Next', back: 'Back', preview: 'Preview', commit: 'Import',
+        step1: 'Account & file', step2: 'Map columns', step3: 'Preview',
+        encoding: 'Encoding', delimiter: 'Delimiter', autoDetect: 'Auto-detect', hasHeader: 'First row is a header',
+        dateColumn: 'Date column', dateFormat: 'Date format', descriptionColumn: 'Description column',
+        amountMode: 'Amount columns', signed: 'One signed column', debitCredit: 'Separate debit/credit',
+        amountColumn: 'Amount column', expenseIsNegative: 'Negative = expense', debitColumn: 'Debit column', creditColumn: 'Credit column',
+        rows: '{{count}} rows', valid: '{{count}} to import', duplicates: '{{count}} duplicate', invalid: '{{count}} invalid',
+        duplicate: 'Duplicate', invalidRow: 'Invalid', misdecoded: 'Some characters look wrong — try a different encoding.',
+        imported: 'Imported {{imported}} — skipped {{duplicates}} duplicate(s), {{invalid}} invalid.',
+        batches: 'Import history', undo: 'Undo', undone: 'Import undone ({{count}} transaction(s) removed).',
+        undoConfirm: 'Undo this import? Its {{count}} transaction(s) will be deleted.', noBatches: 'No imports yet.',
+      },
       breakdown: {
         title: 'Breakdown', categories: 'Categories', uncategorized: 'Uncategorized',
         allCategories: 'All categories', viewTransactions: 'View transactions', empty: 'No spending in this period yet.',
@@ -72,11 +93,11 @@ const resources = {
   pl: {
     translation: {
       app: { name: 'Finanse', tagline: 'Zobacz, gdzie znikają Twoje pieniądze' },
-      nav: { dashboard: 'Pulpit', breakdown: 'Podział', accounts: 'Konta', transactions: 'Transakcje', categories: 'Kategorie', settings: 'Ustawienia', logout: 'Wyloguj' },
+      nav: { dashboard: 'Pulpit', breakdown: 'Podział', transactions: 'Transakcje', import: 'Import', rules: 'Reguły', accounts: 'Konta', categories: 'Kategorie', settings: 'Ustawienia', logout: 'Wyloguj' },
       common: {
         save: 'Zapisz', cancel: 'Anuluj', create: 'Utwórz', edit: 'Edytuj', delete: 'Usuń',
         archive: 'Archiwizuj', loading: 'Ładowanie…', retry: 'Ponów', all: 'Wszystkie', none: 'Brak',
-        confirm: 'Potwierdź', actions: 'Akcje', optional: 'opcjonalne',
+        confirm: 'Potwierdź', actions: 'Akcje', optional: 'opcjonalne', yes: 'Tak', no: 'Nie',
       },
       errors: { generic: 'Coś poszło nie tak.', loadFailed: 'Nie udało się wczytać danych.', required: 'Wymagane' },
       auth: {
@@ -108,6 +129,27 @@ const resources = {
         parent: 'Kategoria nadrzędna', topLevel: 'Najwyższy poziom (bez nadrzędnej)', expense: 'Wydatki', income: 'Przychody',
         empty: 'Brak kategorii — dodaj pierwszą.', deleteConfirm: 'Usunąć tę kategorię? Podkategorie zostaną usunięte, a powiązane transakcje stracą kategorię.',
         deleted: 'Usunięto kategorię ({{count}} transakcji bez kategorii).',
+      },
+      rules: {
+        title: 'Reguły', subtitle: 'Automatyczne kategoryzowanie transakcji pasujących do wzorca.',
+        new: 'Nowa reguła', pattern: 'Wzorzec', category: 'Kategoria', priority: 'Priorytet',
+        apply: 'Zastosuj do bez kategorii', applied: 'Skategoryzowano {{categorized}} z {{scanned}} transakcji.',
+        patternHint: 'Dopasowywany jako fragment opisu (bez wielkości liter). Wyższy priorytet wygrywa.',
+        empty: 'Brak reguł — dodaj regułę, aby automatycznie kategoryzować.', deleteConfirm: 'Usunąć tę regułę?',
+      },
+      import: {
+        title: 'Import', subtitle: 'Zaimportuj plik CSV z banku.',
+        account: 'Konto', file: 'Plik CSV', next: 'Dalej', back: 'Wstecz', preview: 'Podgląd', commit: 'Importuj',
+        step1: 'Konto i plik', step2: 'Mapuj kolumny', step3: 'Podgląd',
+        encoding: 'Kodowanie', delimiter: 'Separator', autoDetect: 'Wykryj automatycznie', hasHeader: 'Pierwszy wiersz to nagłówek',
+        dateColumn: 'Kolumna daty', dateFormat: 'Format daty', descriptionColumn: 'Kolumna opisu',
+        amountMode: 'Kolumny kwoty', signed: 'Jedna kolumna ze znakiem', debitCredit: 'Osobne obciążenie/uznanie',
+        amountColumn: 'Kolumna kwoty', expenseIsNegative: 'Ujemne = wydatek', debitColumn: 'Kolumna obciążenia', creditColumn: 'Kolumna uznania',
+        rows: '{{count}} wierszy', valid: '{{count}} do importu', duplicates: '{{count}} duplikat(ów)', invalid: '{{count}} błędnych',
+        duplicate: 'Duplikat', invalidRow: 'Błędny', misdecoded: 'Niektóre znaki wyglądają źle — wybierz inne kodowanie.',
+        imported: 'Zaimportowano {{imported}} — pominięto {{duplicates}} duplikat(ów), {{invalid}} błędnych.',
+        batches: 'Historia importów', undo: 'Cofnij', undone: 'Cofnięto import (usunięto {{count}} transakcji).',
+        undoConfirm: 'Cofnąć ten import? Zostanie usuniętych {{count}} transakcji.', noBatches: 'Brak importów.',
       },
       breakdown: {
         title: 'Podział', categories: 'Kategorie', uncategorized: 'Bez kategorii',

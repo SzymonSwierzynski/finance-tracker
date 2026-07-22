@@ -159,6 +159,86 @@ export interface Breakdown {
   parents: BreakdownParent[]
 }
 
+// --- Phase 4: rules + CSV import ---
+
+export type AmountMode = NonNullable<S['ImportMapping']['amountMode']>
+export type CreateRuleRequest = S['CreateRuleRequest']
+export type UpdateRuleRequest = S['UpdateRuleRequest']
+
+export interface Rule {
+  id: number
+  pattern: string
+  categoryId: number
+  priority: number
+  version: number
+}
+
+export interface ApplyRulesResult {
+  scanned: number
+  categorized: number
+}
+
+/** How to interpret a CSV against its columns (mirrors the backend ImportMapping). */
+export interface ImportMapping {
+  delimiter: string
+  encoding: string
+  hasHeader: boolean
+  dateIndex: number
+  dateFormat: string
+  descriptionIndex: number
+  amountMode: AmountMode
+  amountIndex: number
+  expenseIsNegative: boolean
+  debitIndex: number
+  creditIndex: number
+}
+
+export interface PreviewRow {
+  index: number
+  date: string | null
+  amountMinor: number | null
+  type: TransactionType
+  description: string
+  valid: boolean
+  error: string | null
+  duplicate: boolean
+}
+
+export interface PreviewResponse {
+  delimiter: string
+  misdecoded: boolean
+  totalRows: number
+  validRows: number
+  duplicateRows: number
+  rows: PreviewRow[]
+}
+
+export interface CommitResult {
+  batchId: number | null
+  imported: number
+  skippedDuplicates: number
+  skippedInvalid: number
+}
+
+export interface ImportBatch {
+  id: number
+  accountId: number
+  fileName: string
+  count: number
+  createdAt: string
+}
+
+export const AMOUNT_MODES: AmountMode[] = ['signed', 'debitCredit']
+export const SUPPORTED_ENCODINGS = ['utf-8', 'windows-1250', 'iso-8859-2'] as const
+export const DATE_FORMAT_OPTIONS = [
+  'auto',
+  'yyyy-MM-dd',
+  'dd.MM.yyyy',
+  'dd-MM-yyyy',
+  'dd/MM/yyyy',
+  'yyyy/MM/dd',
+] as const
+
 export const ACCOUNT_TYPES: AccountType[] = ['checking', 'savings', 'cash', 'credit']
 export const TRANSACTION_TYPES: TransactionType[] = ['expense', 'income', 'transfer']
 export const CATEGORY_KINDS: CategoryKind[] = ['expense', 'income']

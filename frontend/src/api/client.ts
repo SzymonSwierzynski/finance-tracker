@@ -115,8 +115,11 @@ async function toApiError(res: Response): Promise<ApiError> {
 
 async function request<T>(method: string, path: string, opts: RequestOptions = {}): Promise<T> {
   const url = buildUrl(path, opts.params)
+  // FormData bodies (CSV upload) set their own multipart Content-Type with the boundary — leave it
+  // to the browser and don't JSON-stringify.
+  const isFormData = opts.body instanceof FormData
   const headers: Record<string, string> = {}
-  if (opts.body !== undefined) headers['Content-Type'] = 'application/json'
+  if (opts.body !== undefined && !isFormData) headers['Content-Type'] = 'application/json'
 
   const send = (): Promise<Response> => {
     const finalHeaders: Record<string, string> = { ...headers }
@@ -124,7 +127,12 @@ async function request<T>(method: string, path: string, opts: RequestOptions = {
     return fetch(url, {
       method,
       headers: finalHeaders,
-      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+      body:
+        opts.body === undefined
+          ? undefined
+          : isFormData
+            ? (opts.body as FormData)
+            : JSON.stringify(opts.body),
       credentials: 'include',
       signal: opts.signal,
     })
