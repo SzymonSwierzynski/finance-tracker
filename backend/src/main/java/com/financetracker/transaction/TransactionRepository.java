@@ -22,6 +22,9 @@ public interface TransactionRepository
 
   Optional<Transaction> findByIdAndUserId(long id, long userId);
 
+  /** All of the user's transactions, oldest first — for data export / backup. */
+  List<Transaction> findByUserIdOrderByDateAscIdAsc(long userId);
+
   /** How many of the user's transactions reference any of the given categories. */
   long countByUserIdAndCategoryIdIn(long userId, Collection<Long> categoryIds);
 
