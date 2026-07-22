@@ -2,6 +2,7 @@ package com.financetracker.export;
 
 import com.financetracker.common.security.AuthUser;
 import com.financetracker.common.security.CurrentUser;
+import com.financetracker.export.dto.BackupResponse;
 import com.financetracker.export.dto.ExportedTransaction;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import java.util.List;
@@ -26,6 +27,12 @@ public class ExportController {
   @GetMapping("/transactions")
   public List<ExportedTransaction> json(@CurrentUser AuthUser user) {
     return exportService.transactions(user.id());
+  }
+
+  /** Full-data backup: reporting currency + accounts + categories + all transactions as JSON. */
+  @GetMapping("/backup")
+  public BackupResponse backup(@CurrentUser AuthUser user) {
+    return exportService.backup(user.id());
   }
 
   @GetMapping(value = "/transactions/csv", produces = "text/csv")

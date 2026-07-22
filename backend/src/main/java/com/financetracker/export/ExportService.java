@@ -4,7 +4,11 @@ import com.financetracker.account.Account;
 import com.financetracker.account.AccountRepository;
 import com.financetracker.category.Category;
 import com.financetracker.category.CategoryRepository;
+import com.financetracker.export.dto.BackupResponse;
+import com.financetracker.export.dto.BackupResponse.AccountBackup;
+import com.financetracker.export.dto.BackupResponse.CategoryBackup;
 import com.financetracker.export.dto.ExportedTransaction;
+import com.financetracker.settings.SettingsService;
 import com.financetracker.transaction.TransactionRepository;
 import java.io.IOException;
 import java.io.StringWriter;
@@ -12,6 +16,7 @@ import java.io.UncheckedIOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 import org.springframework.stereotype.Service;
@@ -39,14 +44,54 @@ public class ExportService {
   private final TransactionRepository transactionRepository;
   private final AccountRepository accountRepository;
   private final CategoryRepository categoryRepository;
+  private final SettingsService settingsService;
 
   public ExportService(
       TransactionRepository transactionRepository,
       AccountRepository accountRepository,
-      CategoryRepository categoryRepository) {
+      CategoryRepository categoryRepository,
+      SettingsService settingsService) {
     this.transactionRepository = transactionRepository;
     this.accountRepository = accountRepository;
     this.categoryRepository = categoryRepository;
+    this.settingsService = settingsService;
+  }
+
+  /**
+   * A full snapshot of the user's data for backup: reporting currency, accounts, categories, and
+   * every transaction. References are by name (not id) so a future restore can remap onto fresh
+   * ids; money stays integer minor units and locked rates are preserved, so it round-trips.
+   */
+  @Transactional(readOnly = true)
+  public BackupResponse backup(long userId) {
+    List<AccountBackup> accounts =
+        accountRepository.findByUserIdOrderByNameAsc(userId).stream()
+            .map(
+                a ->
+                    new AccountBackup(
+                        a.getName(),
+                        a.getType().value(),
+                        a.getCurrency(),
+                        a.getStartingBalanceMinor(),
+                        a.isTrackBalance(),
+                        a.isArchived()))
+            .toList();
+    List<Category> cats = categoryRepository.findByUserIdOrderByNameAsc(userId);
+    Map<Long, Category> byId = cats.stream().collect(Collectors.toMap(Category::getId, c -> c));
+    List<CategoryBackup> categories =
+        cats.stream()
+            .map(
+                c -> {
+                  Category parent = c.getParentId() == null ? null : byId.get(c.getParentId());
+                  return new CategoryBackup(
+                      c.getName(),
+                      c.getKind().value(),
+                      parent == null ? null : parent.getName(),
+                      c.getColor());
+                })
+            .toList();
+    return new BackupResponse(
+        settingsService.reportingCurrency(userId), accounts, categories, transactions(userId));
   }
 
   @Transactional(readOnly = true)

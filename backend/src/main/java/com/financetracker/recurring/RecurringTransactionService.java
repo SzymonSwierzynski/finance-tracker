@@ -132,25 +132,39 @@ public class RecurringTransactionService {
     recurringRepository.delete(requireOwned(userId, id));
   }
 
-  /**
-   * Materialize the user's due templates into transactions, advancing each schedule (and catching
-   * up past occurrences) until it passes today or its end date. A completed template is
-   * deactivated.
-   */
+  /** Materialize the user's due templates on demand (the user-triggered {@code /recurring/run}). */
   @Transactional
   public RunRecurringResponse run(long userId) {
     LocalDate today = LocalDate.now();
-    List<RecurringTransaction> due =
-        recurringRepository.findByUserIdAndActiveTrueAndNextRunDateLessThanEqual(userId, today);
+    return new RunRecurringResponse(
+        materialize(
+            recurringRepository.findByUserIdAndActiveTrueAndNextRunDateLessThanEqual(userId, today),
+            today));
+  }
+
+  /** Materialize every active, due template across all users — driven by the scheduled sweep. */
+  @Transactional
+  public int materializeAllDue() {
+    LocalDate today = LocalDate.now();
+    return materialize(
+        recurringRepository.findByActiveTrueAndNextRunDateLessThanEqual(today), today);
+  }
+
+  /**
+   * Advance each template through its due occurrences (catching up past ones, capped) until it
+   * passes today or its end date, creating a transaction per occurrence; a completed template is
+   * deactivated. The rate is resolved per template's owner so this works cross-user.
+   */
+  private int materialize(List<RecurringTransaction> due, LocalDate today) {
     List<Transaction> toInsert = new ArrayList<>();
     for (RecurringTransaction template : due) {
-      BigDecimal rate = rateResolver.resolve(userId, template.getCurrency(), null);
+      BigDecimal rate = rateResolver.resolve(template.getUserId(), template.getCurrency(), null);
       int guard = 0;
       while (!template.getNextRunDate().isAfter(today)
           && (template.getEndDate() == null
               || !template.getNextRunDate().isAfter(template.getEndDate()))
           && guard < MAX_MATERIALIZE_PER_RUN) {
-        toInsert.add(materialize(template, template.getNextRunDate(), rate));
+        toInsert.add(newTransaction(template, template.getNextRunDate(), rate));
         template.setNextRunDate(
             template
                 .getFrequency()
@@ -164,10 +178,11 @@ public class RecurringTransactionService {
     }
     transactionRepository.saveAll(toInsert);
     recurringRepository.saveAll(due);
-    return new RunRecurringResponse(toInsert.size());
+    return toInsert.size();
   }
 
-  private Transaction materialize(RecurringTransaction template, LocalDate date, BigDecimal rate) {
+  private Transaction newTransaction(
+      RecurringTransaction template, LocalDate date, BigDecimal rate) {
     Transaction tx = new Transaction();
     tx.setUserId(template.getUserId());
     tx.setDate(date);

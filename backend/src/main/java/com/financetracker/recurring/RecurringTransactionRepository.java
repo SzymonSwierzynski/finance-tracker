@@ -15,4 +15,7 @@ public interface RecurringTransactionRepository extends JpaRepository<RecurringT
   /** The user's active templates whose next run is due on or before {@code date}. */
   List<RecurringTransaction> findByUserIdAndActiveTrueAndNextRunDateLessThanEqual(
       long userId, LocalDate date);
+
+  /** All active templates due on or before {@code date}, across users — for the scheduled sweep. */
+  List<RecurringTransaction> findByActiveTrueAndNextRunDateLessThanEqual(LocalDate date);
 }
