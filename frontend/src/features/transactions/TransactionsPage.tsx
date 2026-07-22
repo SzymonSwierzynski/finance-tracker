@@ -27,6 +27,7 @@ export function TransactionsPage() {
   const [accountId, setAccountId] = useState('')
   const [type, setType] = useState('')
   const [categoryId, setCategoryId] = useState(searchParams.get('categoryId') ?? '')
+  const [q, setQ] = useState('')
   const [page, setPage] = useState(0)
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Transaction | undefined>(undefined)
@@ -37,6 +38,7 @@ export function TransactionsPage() {
     accountId: accountId ? Number(accountId) : undefined,
     type: (type || undefined) as TransactionType | undefined,
     categoryId: categoryId ? Number(categoryId) : undefined,
+    q: q || undefined,
     page,
     size: PAGE_SIZE,
   }
@@ -88,6 +90,17 @@ export function TransactionsPage() {
       />
 
       <Card className="mb-4 p-4">
+        <Input
+          type="search"
+          aria-label={t('transactions.search')}
+          placeholder={t('transactions.search')}
+          value={q}
+          onChange={(e) => {
+            setPage(0)
+            setQ(e.target.value)
+          }}
+          className="mb-3"
+        />
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <Input type="date" aria-label={t('transactions.from')} value={from} onChange={(e) => { setPage(0); setFrom(e.target.value) }} />
           <Input type="date" aria-label={t('transactions.to')} value={to} onChange={(e) => { setPage(0); setTo(e.target.value) }} />

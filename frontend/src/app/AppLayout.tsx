@@ -6,6 +6,7 @@ import { useAuth } from '@/features/auth/AuthProvider'
 const navItems = [
   { to: '/', key: 'nav.dashboard', end: true },
   { to: '/breakdown', key: 'nav.breakdown', end: false },
+  { to: '/trends', key: 'nav.trends', end: false },
   { to: '/transactions', key: 'nav.transactions', end: false },
   { to: '/import', key: 'nav.import', end: false },
   { to: '/rules', key: 'nav.rules', end: false },

@@ -6,6 +6,7 @@ import { AccountsPage } from '@/features/accounts/AccountsPage'
 import { TransactionsPage } from '@/features/transactions/TransactionsPage'
 import { CategoriesPage } from '@/features/categories/CategoriesPage'
 import { BreakdownPage } from '@/features/breakdown/BreakdownPage'
+import { TrendsPage } from '@/features/trends/TrendsPage'
 import { ImportPage } from '@/features/import/ImportPage'
 import { RulesPage } from '@/features/rules/RulesPage'
 import { SettingsPage } from '@/features/settings/SettingsPage'
@@ -35,6 +36,7 @@ export function App() {
         <Route path="/accounts" element={<AccountsPage />} />
         <Route path="/transactions" element={<TransactionsPage />} />
         <Route path="/breakdown" element={<BreakdownPage />} />
+        <Route path="/trends" element={<TrendsPage />} />
         <Route path="/categories" element={<CategoriesPage />} />
         <Route path="/import" element={<ImportPage />} />
         <Route path="/rules" element={<RulesPage />} />

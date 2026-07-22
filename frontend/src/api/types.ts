@@ -239,6 +239,40 @@ export const DATE_FORMAT_OPTIONS = [
   'yyyy/MM/dd',
 ] as const
 
+// --- Phase 5: trend + cashflow ---
+
+export type TrendInterval = 'month' | 'week'
+
+export interface TrendBucket {
+  period: string
+  incomeMinor: number
+  expenseMinor: number
+}
+
+export interface TrendResponse {
+  from: string
+  to: string
+  interval: string
+  currency: string
+  buckets: TrendBucket[]
+}
+
+export interface CashflowBucket {
+  period: string
+  incomeMinor: number
+  expenseMinor: number
+  netMinor: number
+  runningNetMinor: number
+}
+
+export interface CashflowResponse {
+  from: string
+  to: string
+  interval: string
+  currency: string
+  buckets: CashflowBucket[]
+}
+
 export const ACCOUNT_TYPES: AccountType[] = ['checking', 'savings', 'cash', 'credit']
 export const TRANSACTION_TYPES: TransactionType[] = ['expense', 'income', 'transfer']
 export const CATEGORY_KINDS: CategoryKind[] = ['expense', 'income']

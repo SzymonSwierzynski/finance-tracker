@@ -10,7 +10,7 @@ const resources = {
   en: {
     translation: {
       app: { name: 'Finance Tracker', tagline: 'See where your money goes' },
-      nav: { dashboard: 'Dashboard', breakdown: 'Breakdown', transactions: 'Transactions', import: 'Import', rules: 'Rules', accounts: 'Accounts', categories: 'Categories', settings: 'Settings', logout: 'Log out' },
+      nav: { dashboard: 'Dashboard', breakdown: 'Breakdown', trends: 'Trends', transactions: 'Transactions', import: 'Import', rules: 'Rules', accounts: 'Accounts', categories: 'Categories', settings: 'Settings', logout: 'Log out' },
       common: {
         save: 'Save', cancel: 'Cancel', create: 'Create', edit: 'Edit', delete: 'Delete',
         archive: 'Archive', loading: 'Loading…', retry: 'Retry', all: 'All', none: 'None',
@@ -38,7 +38,7 @@ const resources = {
         title: 'Transactions', new: 'New transaction', date: 'Date', amount: 'Amount', type: 'Type',
         account: 'Account', counterAccount: 'To account', description: 'Description', note: 'Note',
         rate: 'Rate to base', baseValue: 'Base value', empty: 'No transactions match these filters.',
-        expense: 'Expense', income: 'Income', transfer: 'Transfer', filters: 'Filters', category: 'Category',
+        expense: 'Expense', income: 'Income', transfer: 'Transfer', filters: 'Filters', category: 'Category', search: 'Search description…',
         deleteConfirm: 'Delete this transaction?', from: 'From', to: 'To', rateHint: 'Leave blank to use the rate from Settings. Whatever is used gets locked onto this transaction.',
       },
       categories: {
@@ -72,6 +72,10 @@ const resources = {
         title: 'Breakdown', categories: 'Categories', uncategorized: 'Uncategorized',
         allCategories: 'All categories', viewTransactions: 'View transactions', empty: 'No spending in this period yet.',
       },
+      trends: {
+        title: 'Trends', month: 'Monthly', week: 'Weekly', income: 'Income', expense: 'Expense',
+        net: 'Running net', empty: 'No activity in this period yet.',
+      },
       settings: {
         title: 'Settings', reportingCurrency: 'Reporting currency',
         reportingHint: 'Totals and reports roll up into this currency. Changing it affects future display only — locked per-transaction rates are never rewritten.',
@@ -93,7 +97,7 @@ const resources = {
   pl: {
     translation: {
       app: { name: 'Finanse', tagline: 'Zobacz, gdzie znikają Twoje pieniądze' },
-      nav: { dashboard: 'Pulpit', breakdown: 'Podział', transactions: 'Transakcje', import: 'Import', rules: 'Reguły', accounts: 'Konta', categories: 'Kategorie', settings: 'Ustawienia', logout: 'Wyloguj' },
+      nav: { dashboard: 'Pulpit', breakdown: 'Podział', trends: 'Trendy', transactions: 'Transakcje', import: 'Import', rules: 'Reguły', accounts: 'Konta', categories: 'Kategorie', settings: 'Ustawienia', logout: 'Wyloguj' },
       common: {
         save: 'Zapisz', cancel: 'Anuluj', create: 'Utwórz', edit: 'Edytuj', delete: 'Usuń',
         archive: 'Archiwizuj', loading: 'Ładowanie…', retry: 'Ponów', all: 'Wszystkie', none: 'Brak',
@@ -121,7 +125,7 @@ const resources = {
         title: 'Transakcje', new: 'Nowa transakcja', date: 'Data', amount: 'Kwota', type: 'Typ',
         account: 'Konto', counterAccount: 'Konto docelowe', description: 'Opis', note: 'Notatka',
         rate: 'Kurs do bazy', baseValue: 'Wartość bazowa', empty: 'Brak transakcji dla tych filtrów.',
-        expense: 'Wydatek', income: 'Przychód', transfer: 'Przelew', filters: 'Filtry', category: 'Kategoria',
+        expense: 'Wydatek', income: 'Przychód', transfer: 'Przelew', filters: 'Filtry', category: 'Kategoria', search: 'Szukaj w opisie…',
         deleteConfirm: 'Usunąć tę transakcję?', from: 'Od', to: 'Do', rateHint: 'Zostaw puste, aby użyć kursu z Ustawień. Użyty kurs zostanie zapisany w tej transakcji.',
       },
       categories: {
@@ -154,6 +158,10 @@ const resources = {
       breakdown: {
         title: 'Podział', categories: 'Kategorie', uncategorized: 'Bez kategorii',
         allCategories: 'Wszystkie kategorie', viewTransactions: 'Pokaż transakcje', empty: 'Brak wydatków w tym okresie.',
+      },
+      trends: {
+        title: 'Trendy', month: 'Miesięcznie', week: 'Tygodniowo', income: 'Przychody', expense: 'Wydatki',
+        net: 'Saldo skumulowane', empty: 'Brak aktywności w tym okresie.',
       },
       settings: {
         title: 'Ustawienia', reportingCurrency: 'Waluta raportowania',
