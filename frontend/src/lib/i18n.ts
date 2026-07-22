@@ -10,7 +10,7 @@ const resources = {
   en: {
     translation: {
       app: { name: 'Finance Tracker', tagline: 'See where your money goes' },
-      nav: { dashboard: 'Dashboard', breakdown: 'Breakdown', trends: 'Trends', transactions: 'Transactions', import: 'Import', rules: 'Rules', accounts: 'Accounts', categories: 'Categories', settings: 'Settings', logout: 'Log out' },
+      nav: { dashboard: 'Dashboard', breakdown: 'Breakdown', trends: 'Trends', transactions: 'Transactions', import: 'Import', rules: 'Rules', recurring: 'Recurring', accounts: 'Accounts', categories: 'Categories', settings: 'Settings', logout: 'Log out' },
       common: {
         save: 'Save', cancel: 'Cancel', create: 'Create', edit: 'Edit', delete: 'Delete',
         archive: 'Archive', loading: 'Loading…', retry: 'Retry', all: 'All', none: 'None',
@@ -53,6 +53,14 @@ const resources = {
         apply: 'Apply to uncategorized', applied: '{{categorized}} of {{scanned}} transaction(s) categorized.',
         patternHint: 'Matched as a case-insensitive substring of the description. Higher priority wins.',
         empty: 'No rules yet — add one to auto-categorize transactions.', deleteConfirm: 'Delete this rule?',
+      },
+      recurring: {
+        title: 'Recurring', subtitle: 'Templates that create transactions on a schedule.',
+        new: 'New recurring', run: 'Run due now', ran: 'Created {{count}} transaction(s) from due templates.',
+        empty: 'No recurring templates yet.', deleteConfirm: 'Delete this recurring template?',
+        frequency: 'Frequency', every: 'Every (N)', startDate: 'Starts', endDate: 'Ends', next: 'Next',
+        daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly', yearly: 'Yearly',
+        pause: 'Pause', resume: 'Resume', paused: 'Paused',
       },
       import: {
         title: 'Import', subtitle: 'Import a CSV export from your bank.',
@@ -102,7 +110,7 @@ const resources = {
   pl: {
     translation: {
       app: { name: 'Finanse', tagline: 'Zobacz, gdzie znikają Twoje pieniądze' },
-      nav: { dashboard: 'Pulpit', breakdown: 'Podział', trends: 'Trendy', transactions: 'Transakcje', import: 'Import', rules: 'Reguły', accounts: 'Konta', categories: 'Kategorie', settings: 'Ustawienia', logout: 'Wyloguj' },
+      nav: { dashboard: 'Pulpit', breakdown: 'Podział', trends: 'Trendy', transactions: 'Transakcje', import: 'Import', rules: 'Reguły', recurring: 'Cykliczne', accounts: 'Konta', categories: 'Kategorie', settings: 'Ustawienia', logout: 'Wyloguj' },
       common: {
         save: 'Zapisz', cancel: 'Anuluj', create: 'Utwórz', edit: 'Edytuj', delete: 'Usuń',
         archive: 'Archiwizuj', loading: 'Ładowanie…', retry: 'Ponów', all: 'Wszystkie', none: 'Brak',
@@ -145,6 +153,14 @@ const resources = {
         apply: 'Zastosuj do bez kategorii', applied: 'Skategoryzowano {{categorized}} z {{scanned}} transakcji.',
         patternHint: 'Dopasowywany jako fragment opisu (bez wielkości liter). Wyższy priorytet wygrywa.',
         empty: 'Brak reguł — dodaj regułę, aby automatycznie kategoryzować.', deleteConfirm: 'Usunąć tę regułę?',
+      },
+      recurring: {
+        title: 'Cykliczne', subtitle: 'Szablony tworzące transakcje według harmonogramu.',
+        new: 'Nowy szablon', run: 'Uruchom teraz', ran: 'Utworzono {{count}} transakcji z szablonów.',
+        empty: 'Brak szablonów cyklicznych.', deleteConfirm: 'Usunąć ten szablon cykliczny?',
+        frequency: 'Częstotliwość', every: 'Co (N)', startDate: 'Początek', endDate: 'Koniec', next: 'Następne',
+        daily: 'Codziennie', weekly: 'Co tydzień', monthly: 'Co miesiąc', yearly: 'Co rok',
+        pause: 'Wstrzymaj', resume: 'Wznów', paused: 'Wstrzymane',
       },
       import: {
         title: 'Import', subtitle: 'Zaimportuj plik CSV z banku.',

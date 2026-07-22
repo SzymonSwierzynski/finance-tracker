@@ -295,6 +295,53 @@ export interface CategoryTrendResponse {
   buckets: CategoryTrendBucket[]
 }
 
+// --- Phase 6: recurring transactions ---
+
+export type RecurringFrequency = 'daily' | 'weekly' | 'monthly' | 'yearly'
+
+export interface Recurring {
+  id: number
+  accountId: number
+  categoryId: number | null
+  amountMinor: number
+  type: TransactionType
+  currency: string
+  description: string
+  note: string
+  frequency: RecurringFrequency
+  intervalCount: number
+  startDate: string
+  endDate: string | null
+  nextRunDate: string
+  active: boolean
+  version: number
+}
+
+export interface CreateRecurringRequest {
+  accountId: number
+  amountMinor: number
+  type: TransactionType
+  categoryId?: number
+  currency?: string
+  description?: string
+  note?: string
+  frequency: RecurringFrequency
+  intervalCount?: number
+  startDate: string
+  endDate?: string
+}
+
+export interface UpdateRecurringRequest {
+  version: number
+  amountMinor?: number
+  description?: string
+  note?: string
+  active?: boolean
+  endDate?: string
+}
+
+export const RECURRING_FREQUENCIES: RecurringFrequency[] = ['daily', 'weekly', 'monthly', 'yearly']
+
 export const ACCOUNT_TYPES: AccountType[] = ['checking', 'savings', 'cash', 'credit']
 export const TRANSACTION_TYPES: TransactionType[] = ['expense', 'income', 'transfer']
 export const CATEGORY_KINDS: CategoryKind[] = ['expense', 'income']

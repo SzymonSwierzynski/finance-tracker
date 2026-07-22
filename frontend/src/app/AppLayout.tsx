@@ -10,6 +10,7 @@ const navItems = [
   { to: '/transactions', key: 'nav.transactions', end: false },
   { to: '/import', key: 'nav.import', end: false },
   { to: '/rules', key: 'nav.rules', end: false },
+  { to: '/recurring', key: 'nav.recurring', end: false },
   { to: '/accounts', key: 'nav.accounts', end: false },
   { to: '/categories', key: 'nav.categories', end: false },
   { to: '/settings', key: 'nav.settings', end: false },
