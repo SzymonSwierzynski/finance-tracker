@@ -25,6 +25,16 @@ public interface TransactionRepository
   /** How many of the user's transactions reference any of the given categories. */
   long countByUserIdAndCategoryIdIn(long userId, Collection<Long> categoryIds);
 
+  /** The user's uncategorized transactions of the given types (for re-running rules). */
+  List<Transaction> findByUserIdAndCategoryIdIsNullAndTypeIn(
+      long userId, Collection<TransactionType> types);
+
+  /** Dedupe hashes already present for an account, for skipping duplicates on CSV import. */
+  @Query(
+      "SELECT t.dedupeHash FROM Transaction t WHERE t.userId = :userId AND t.accountId = :accountId")
+  List<String> findDedupeHashesByUserIdAndAccountId(
+      @Param("userId") long userId, @Param("accountId") long accountId);
+
   /**
    * Income/expense totals for a date range, in base (reporting) minor units. Each row is converted
    * with its own locked rate and rounded before summing, then grouped by type. Transfers excluded.
