@@ -15,6 +15,8 @@ import com.financetracker.fx.RateResolver;
 import com.financetracker.transaction.dto.CreateTransactionRequest;
 import com.financetracker.transaction.dto.TransactionResponse;
 import com.financetracker.transaction.dto.UpdateTransactionRequest;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.persistence.criteria.Predicate;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -45,16 +47,23 @@ public class TransactionService {
   private final AccountRepository accountRepository;
   private final CategoryRepository categoryRepository;
   private final RateResolver rateResolver;
+  private final Counter transactionsCreated;
 
   public TransactionService(
       TransactionRepository transactionRepository,
       AccountRepository accountRepository,
       CategoryRepository categoryRepository,
-      RateResolver rateResolver) {
+      RateResolver rateResolver,
+      MeterRegistry meterRegistry) {
     this.transactionRepository = transactionRepository;
     this.accountRepository = accountRepository;
     this.categoryRepository = categoryRepository;
     this.rateResolver = rateResolver;
+    // "entered" not "created": Prometheus treats a _created suffix as reserved and would drop it.
+    this.transactionsCreated =
+        Counter.builder("financetracker.transactions.entered")
+            .description("Manually-entered transactions created")
+            .register(meterRegistry);
   }
 
   @Transactional
@@ -104,7 +113,9 @@ public class TransactionService {
         dedupeHash(
             request.date(), request.amountMinor(), currency, request.accountId(), description));
 
-    return toResponse(transactionRepository.save(tx));
+    TransactionResponse response = toResponse(transactionRepository.save(tx));
+    transactionsCreated.increment();
+    return response;
   }
 
   @Transactional(readOnly = true)

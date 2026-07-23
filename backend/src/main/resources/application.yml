@@ -36,7 +36,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info,metrics,prometheus
   endpoint:
     health:
       probes:
@@ -77,3 +77,6 @@ app:
 logging:
   level:
     root: INFO
+  pattern:
+    # Surface the per-request correlation id (RequestIdFilter's MDC) in each line; empty off-request.
+    level: "%5p [%X{requestId:-}]"

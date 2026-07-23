@@ -6,6 +6,8 @@ import com.financetracker.common.error.ConflictException;
 import com.financetracker.common.error.NotFoundException;
 import com.financetracker.config.AuthProperties;
 import com.financetracker.settings.SettingsService;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
@@ -40,6 +42,7 @@ public class AuthService {
   private final JwtService jwtService;
   private final AuthProperties props;
   private final SecureRandom secureRandom = new SecureRandom();
+  private final Counter registrations;
 
   public AuthService(
       UserRepository userRepository,
@@ -48,7 +51,8 @@ public class AuthService {
       DefaultCategorySeeder defaultCategorySeeder,
       PasswordEncoder passwordEncoder,
       JwtService jwtService,
-      AuthProperties props) {
+      AuthProperties props,
+      MeterRegistry meterRegistry) {
     this.userRepository = userRepository;
     this.refreshTokenRepository = refreshTokenRepository;
     this.settingsService = settingsService;
@@ -56,6 +60,10 @@ public class AuthService {
     this.passwordEncoder = passwordEncoder;
     this.jwtService = jwtService;
     this.props = props;
+    this.registrations =
+        Counter.builder("financetracker.registrations")
+            .description("Successful user registrations")
+            .register(meterRegistry);
   }
 
   @Transactional
@@ -73,6 +81,7 @@ public class AuthService {
 
     settingsService.createDefault(saved.getId());
     defaultCategorySeeder.seedIfNeeded(saved.getId());
+    registrations.increment();
     log.info("Registered user id={}", saved.getId());
     return issueTokens(saved);
   }

@@ -18,6 +18,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
  * Single source of truth mapping exceptions to RFC 9457 {@code application/problem+json}.
@@ -118,6 +119,13 @@ public class GlobalExceptionHandler {
         "Malformed request",
         "The request body could not be read.",
         req.getRequestURI());
+  }
+
+  @ExceptionHandler(NoResourceFoundException.class)
+  public ProblemDetail handleNoResource(NoResourceFoundException ex, HttpServletRequest req) {
+    // An unmapped path is a client 404, not an unexpected 500 — and must not be logged as an error.
+    return problem(
+        HttpStatus.NOT_FOUND, "Not found", "No resource for this path.", req.getRequestURI());
   }
 
   @ExceptionHandler(Exception.class)
