@@ -1,5 +1,7 @@
-# Local/demo stack. Phase 1 ships db + backend; the frontend service is added in
-# the frontend round. Bring it up with: docker compose up --build
+# Local/demo full stack — db + backend + frontend. One command runs everything:
+#   docker compose up --build
+# The frontend (nginx) serves the SPA and proxies /api to the backend, so the app is same-origin
+# and the refresh cookie stays first-party (CLAUDE.md §5). Open http://localhost:5173.
 services:
   db:
     image: postgres:16-alpine
@@ -31,10 +33,13 @@ services:
     ports:
       - "8080:8080"
 
-  # frontend:
-  #   build: ./frontend
-  #   depends_on: [backend]
-  #   ports: ["5173:80"]
+  frontend:
+    build: ./frontend
+    depends_on:
+      - backend
+    # Host 5173 → nginx :80, matching the dev-server port so bookmarks/docs keep working.
+    ports:
+      - "5173:80"
 
 volumes:
   db-data:

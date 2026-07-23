@@ -6,6 +6,13 @@ updates:
       interval: weekly
     open-pull-requests-limit: 5
 
+  # Frontend npm tree — security + version updates (the piece npm audit in CI can't open PRs for).
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
   - package-ecosystem: github-actions
     directory: /
     schedule:
