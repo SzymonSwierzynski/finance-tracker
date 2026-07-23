@@ -36,6 +36,7 @@ public class ExportService {
     "currency",
     "rateToBase",
     "account",
+    "counterAccount",
     "category",
     "description",
     "note"
@@ -114,6 +115,9 @@ public class ExportService {
                     t.getCurrency(),
                     t.getRateToBase(),
                     accountNames.getOrDefault(t.getAccountId(), ""),
+                    t.getCounterAccountId() == null
+                        ? ""
+                        : accountNames.getOrDefault(t.getCounterAccountId(), ""),
                     t.getCategoryId() == null
                         ? ""
                         : categoryNames.getOrDefault(t.getCategoryId(), ""),
@@ -134,6 +138,7 @@ public class ExportService {
             r.currency(),
             r.rateToBase(),
             r.account(),
+            r.counterAccount(),
             r.category(),
             r.description(),
             r.note());

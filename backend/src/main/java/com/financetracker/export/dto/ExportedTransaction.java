@@ -4,7 +4,8 @@ import java.math.BigDecimal;
 
 /**
  * One transaction flattened for export: money stays as integer minor units (round-trippable),
- * account/category are the human-readable names, {@code rateToBase} is the locked rate.
+ * account/counterAccount/category are the human-readable names ({@code counterAccount} is set only
+ * for transfers, else ""), {@code rateToBase} is the locked rate.
  */
 public record ExportedTransaction(
     String date,
@@ -13,6 +14,7 @@ public record ExportedTransaction(
     String currency,
     BigDecimal rateToBase,
     String account,
+    String counterAccount,
     String category,
     String description,
     String note) {}

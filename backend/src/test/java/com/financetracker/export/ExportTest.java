@@ -44,7 +44,8 @@ class ExportTest extends AbstractIntegrationTest {
             .andReturn();
     String body = csv.getResponse().getContentAsString();
     assertThat(body)
-        .contains("date,type,amountMinor,currency,rateToBase,account,category,description,note")
+        .contains(
+            "date,type,amountMinor,currency,rateToBase,account,counterAccount,category,description,note")
         .contains("2026-05-10")
         .contains("Biedronka")
         .contains("1999");
@@ -142,16 +143,80 @@ class ExportTest extends AbstractIntegrationTest {
         .andExpect(jsonPath("$.transactions.length()").value(1));
   }
 
+  @Test
+  void restoreRoundTripsTransfers() throws Exception {
+    RegisteredUser source = register("restore-xfer-src@example.com", "password123");
+    clearCategories(source);
+    long checking = createAccount(source, "Checking");
+    long savings = createAccount(source, "Savings");
+    createTransfer(source, checking, savings, "2026-06-01", 50000);
+    String backup =
+        mockMvc
+            .perform(get("/api/v1/export/backup").header(HttpHeaders.AUTHORIZATION, bearer(source)))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    RegisteredUser target = register("restore-xfer-dst@example.com", "password123");
+    clearCategories(target);
+    mockMvc
+        .perform(
+            post("/api/v1/export/restore")
+                .header(HttpHeaders.AUTHORIZATION, bearer(target))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(backup))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.accountsCreated").value(2))
+        .andExpect(jsonPath("$.transactionsImported").value(1))
+        .andExpect(jsonPath("$.transfersSkipped").value(0));
+
+    // The transfer round-trips with both sides intact (account + counter-account by name).
+    mockMvc
+        .perform(get("/api/v1/export/backup").header(HttpHeaders.AUTHORIZATION, bearer(target)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.transactions.length()").value(1))
+        .andExpect(jsonPath("$.transactions[0].type").value("transfer"))
+        .andExpect(jsonPath("$.transactions[0].amountMinor").value(50000))
+        .andExpect(jsonPath("$.transactions[0].account").value("Checking"))
+        .andExpect(jsonPath("$.transactions[0].counterAccount").value("Savings"));
+  }
+
   private long createAccount(RegisteredUser user) throws Exception {
+    return createAccount(user, "Checking");
+  }
+
+  private long createAccount(RegisteredUser user, String name) throws Exception {
     return id(
         mockMvc
             .perform(
                 post("/api/v1/accounts")
                     .header(HttpHeaders.AUTHORIZATION, bearer(user))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content("{\"name\":\"Checking\",\"type\":\"checking\",\"currency\":\"PLN\"}"))
+                    .content(
+                        "{\"name\":\"" + name + "\",\"type\":\"checking\",\"currency\":\"PLN\"}"))
             .andExpect(status().isCreated())
             .andReturn());
+  }
+
+  private void createTransfer(RegisteredUser user, long from, long to, String date, long amount)
+      throws Exception {
+    mockMvc
+        .perform(
+            post("/api/v1/transactions")
+                .header(HttpHeaders.AUTHORIZATION, bearer(user))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    "{\"date\":\""
+                        + date
+                        + "\",\"amountMinor\":"
+                        + amount
+                        + ",\"type\":\"transfer\",\"accountId\":"
+                        + from
+                        + ",\"counterAccountId\":"
+                        + to
+                        + "}"))
+        .andExpect(status().isCreated());
   }
 
   private long createCategory(RegisteredUser user, String name) throws Exception {

@@ -40,8 +40,8 @@ import org.springframework.util.StringUtils;
  * adds nothing the second time. Money stays integer minor units and each transaction's locked
  * {@code rateToBase} is preserved, so a report over restored data reads identically.
  *
- * <p>Limitation: the export format carries a transfer's account but not its counter-account, so
- * transfer rows can't be faithfully reconstructed and are skipped (counted in the summary).
+ * <p>Transfers carry their counter-account by name and are restored too; a transfer whose
+ * counter-account can't be resolved (e.g. corrupt input) is skipped and counted in the summary.
  */
 @Service
 public class RestoreService {
@@ -193,14 +193,21 @@ public class RestoreService {
     int skipped = 0;
     int transfersSkipped = 0;
     for (ExportedTransaction t : nullSafe(transactions)) {
-      if (TransactionType.TRANSFER.value().equals(t.type())) {
-        transfersSkipped++;
-        continue;
-      }
       Long accountId = accountIdByName.get(t.account());
       if (accountId == null) {
         skipped++; // account name didn't resolve (shouldn't happen once accounts are restored)
         continue;
+      }
+      Long counterAccountId = null;
+      if (TransactionType.TRANSFER.value().equals(t.type())) {
+        counterAccountId =
+            StringUtils.hasText(t.counterAccount())
+                ? accountIdByName.get(t.counterAccount())
+                : null;
+        if (counterAccountId == null) {
+          transfersSkipped++; // a transfer can't be rebuilt without its other side
+          continue;
+        }
       }
       Set<String> seen =
           hashesByAccount.computeIfAbsent(
@@ -215,7 +222,7 @@ public class RestoreService {
         skipped++; // already present, or a duplicate within this backup
         continue;
       }
-      toInsert.add(newTransaction(userId, t, accountId, categoryIdByName, hash));
+      toInsert.add(newTransaction(userId, t, accountId, counterAccountId, categoryIdByName, hash));
       imported++;
     }
     transactionRepository.saveAll(toInsert);
@@ -227,16 +234,22 @@ public class RestoreService {
       long userId,
       ExportedTransaction t,
       long accountId,
+      Long counterAccountId,
       Map<String, Long> categoryIdByName,
       String dedupeHash) {
     Transaction tx = new Transaction();
     tx.setUserId(userId);
     tx.setDate(LocalDate.parse(t.date()));
     tx.setAmountMinor(t.amountMinor());
-    tx.setType(TransactionType.fromValue(t.type()));
+    TransactionType type = TransactionType.fromValue(t.type());
+    tx.setType(type);
     tx.setAccountId(accountId);
-    tx.setCounterAccountId(null);
-    tx.setCategoryId(StringUtils.hasText(t.category()) ? categoryIdByName.get(t.category()) : null);
+    tx.setCounterAccountId(counterAccountId);
+    // Transfers are never categorized (CLAUDE.md §6); otherwise resolve the category by name.
+    tx.setCategoryId(
+        type == TransactionType.TRANSFER || !StringUtils.hasText(t.category())
+            ? null
+            : categoryIdByName.get(t.category()));
     tx.setCurrency(t.currency());
     tx.setRateToBase(t.rateToBase()); // preserve the locked rate (CLAUDE.md §7)
     tx.setDescription(t.description() == null ? "" : t.description());
