@@ -348,3 +348,43 @@ export const CATEGORY_KINDS: CategoryKind[] = ['expense', 'income']
 
 /** Fixed Uncategorized slice colour (matches the backend). */
 export const UNCATEGORIZED_COLOR = '#94a3b8'
+
+// --- Phase 7: budgets ---
+// Request bodies are hand-declared here as an interim; run `npm run gen:api` (backend running) to
+// source them from the OpenAPI schema like the other request contracts above.
+
+export interface CreateBudgetRequest {
+  categoryId: number
+  amountMinor: number
+}
+
+export interface UpdateBudgetRequest {
+  amountMinor: number
+  version: number
+}
+
+export interface BudgetResponse {
+  id: number
+  categoryId: number
+  amountMinor: number
+  version: number
+}
+
+/** One budget's progress for a month, in base-currency minor units. */
+export interface BudgetProgress {
+  id: number
+  categoryId: number
+  categoryName: string
+  color: string
+  amountMinor: number
+  spentMinor: number
+  remainingMinor: number
+  over: boolean
+  version: number
+}
+
+export interface Budgets {
+  month: string
+  currency: string
+  items: BudgetProgress[]
+}

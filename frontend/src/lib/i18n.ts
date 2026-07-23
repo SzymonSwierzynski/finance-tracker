@@ -10,7 +10,7 @@ const resources = {
   en: {
     translation: {
       app: { name: 'Finance Tracker', tagline: 'See where your money goes' },
-      nav: { dashboard: 'Dashboard', breakdown: 'Breakdown', trends: 'Trends', transactions: 'Transactions', import: 'Import', rules: 'Rules', recurring: 'Recurring', accounts: 'Accounts', categories: 'Categories', settings: 'Settings', logout: 'Log out' },
+      nav: { dashboard: 'Dashboard', breakdown: 'Breakdown', trends: 'Trends', transactions: 'Transactions', import: 'Import', rules: 'Rules', recurring: 'Recurring', budgets: 'Budgets', accounts: 'Accounts', categories: 'Categories', settings: 'Settings', logout: 'Log out' },
       common: {
         save: 'Save', cancel: 'Cancel', create: 'Create', edit: 'Edit', delete: 'Delete',
         archive: 'Archive', loading: 'Loading…', retry: 'Retry', all: 'All', none: 'None',
@@ -62,6 +62,12 @@ const resources = {
         daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly', yearly: 'Yearly',
         pause: 'Pause', resume: 'Resume', paused: 'Paused',
       },
+      budgets: {
+        title: 'Budgets', subtitle: 'Set a monthly limit per category and track spending against it.',
+        new: 'New budget', edit: 'Edit budget', empty: 'No budgets yet — add one to track a category.',
+        deleteConfirm: 'Delete this budget?', month: 'Month', category: 'Category', monthlyLimit: 'Monthly limit',
+        over: 'Over', left: 'Left', invalidAmount: 'Enter an amount greater than zero.',
+      },
       import: {
         title: 'Import', subtitle: 'Import a CSV export from your bank.',
         account: 'Account', file: 'CSV file', next: 'Next', back: 'Back', preview: 'Preview', commit: 'Import',
@@ -112,7 +118,7 @@ const resources = {
   pl: {
     translation: {
       app: { name: 'Finanse', tagline: 'Zobacz, gdzie znikają Twoje pieniądze' },
-      nav: { dashboard: 'Pulpit', breakdown: 'Podział', trends: 'Trendy', transactions: 'Transakcje', import: 'Import', rules: 'Reguły', recurring: 'Cykliczne', accounts: 'Konta', categories: 'Kategorie', settings: 'Ustawienia', logout: 'Wyloguj' },
+      nav: { dashboard: 'Pulpit', breakdown: 'Podział', trends: 'Trendy', transactions: 'Transakcje', import: 'Import', rules: 'Reguły', recurring: 'Cykliczne', budgets: 'Budżety', accounts: 'Konta', categories: 'Kategorie', settings: 'Ustawienia', logout: 'Wyloguj' },
       common: {
         save: 'Zapisz', cancel: 'Anuluj', create: 'Utwórz', edit: 'Edytuj', delete: 'Usuń',
         archive: 'Archiwizuj', loading: 'Ładowanie…', retry: 'Ponów', all: 'Wszystkie', none: 'Brak',
@@ -163,6 +169,12 @@ const resources = {
         frequency: 'Częstotliwość', every: 'Co (N)', startDate: 'Początek', endDate: 'Koniec', next: 'Następne',
         daily: 'Codziennie', weekly: 'Co tydzień', monthly: 'Co miesiąc', yearly: 'Co rok',
         pause: 'Wstrzymaj', resume: 'Wznów', paused: 'Wstrzymane',
+      },
+      budgets: {
+        title: 'Budżety', subtitle: 'Ustaw miesięczny limit dla kategorii i śledź wydatki względem niego.',
+        new: 'Nowy budżet', edit: 'Edytuj budżet', empty: 'Brak budżetów — dodaj, aby śledzić kategorię.',
+        deleteConfirm: 'Usunąć ten budżet?', month: 'Miesiąc', category: 'Kategoria', monthlyLimit: 'Limit miesięczny',
+        over: 'Ponad', left: 'Zostało', invalidAmount: 'Podaj kwotę większą od zera.',
       },
       import: {
         title: 'Import', subtitle: 'Zaimportuj plik CSV z banku.',

@@ -10,6 +10,7 @@ import { TrendsPage } from '@/features/trends/TrendsPage'
 import { ImportPage } from '@/features/import/ImportPage'
 import { RulesPage } from '@/features/rules/RulesPage'
 import { RecurringPage } from '@/features/recurring/RecurringPage'
+import { BudgetsPage } from '@/features/budgets/BudgetsPage'
 import { SettingsPage } from '@/features/settings/SettingsPage'
 import { AnonOnly, RequireAuth } from './guards'
 
@@ -42,6 +43,7 @@ export function App() {
         <Route path="/import" element={<ImportPage />} />
         <Route path="/rules" element={<RulesPage />} />
         <Route path="/recurring" element={<RecurringPage />} />
+        <Route path="/budgets" element={<BudgetsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

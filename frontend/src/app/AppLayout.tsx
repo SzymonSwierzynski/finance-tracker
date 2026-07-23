@@ -11,6 +11,7 @@ const navItems = [
   { to: '/import', key: 'nav.import', end: false },
   { to: '/rules', key: 'nav.rules', end: false },
   { to: '/recurring', key: 'nav.recurring', end: false },
+  { to: '/budgets', key: 'nav.budgets', end: false },
   { to: '/accounts', key: 'nav.accounts', end: false },
   { to: '/categories', key: 'nav.categories', end: false },
   { to: '/settings', key: 'nav.settings', end: false },
