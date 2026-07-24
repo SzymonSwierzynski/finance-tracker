@@ -19,6 +19,8 @@ import com.financetracker.transaction.TransactionRepository;
 import com.financetracker.transaction.TransactionType;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -40,6 +42,13 @@ public class RecurringTransactionService {
    * Cap catch-up per template per run so a very old daily template can't create a runaway batch.
    */
   private static final int MAX_MATERIALIZE_PER_RUN = 500;
+
+  /**
+   * "Today" for recurring schedules is anchored to UTC, not the server's default zone (CLAUDE.md
+   * §3: never depend on server timezone for business logic), so "due today" is deterministic per
+   * host.
+   */
+  private static final ZoneId SCHEDULE_ZONE = ZoneOffset.UTC;
 
   private final RecurringTransactionRepository recurringRepository;
   private final AccountRepository accountRepository;
@@ -137,7 +146,7 @@ public class RecurringTransactionService {
   /** Materialize the user's due templates on demand (the user-triggered {@code /recurring/run}). */
   @Transactional
   public RunRecurringResponse run(long userId) {
-    LocalDate today = LocalDate.now();
+    LocalDate today = LocalDate.now(SCHEDULE_ZONE);
     int created = 0;
     for (RecurringTransaction template :
         recurringRepository.findByUserIdAndActiveTrueAndNextRunDateLessThanEqual(userId, today)) {
@@ -149,7 +158,9 @@ public class RecurringTransactionService {
   /** Ids of every active, due template across all users — for the scheduled per-template sweep. */
   @Transactional(readOnly = true)
   public List<Long> dueTemplateIds() {
-    return recurringRepository.findByActiveTrueAndNextRunDateLessThanEqual(LocalDate.now()).stream()
+    return recurringRepository
+        .findByActiveTrueAndNextRunDateLessThanEqual(LocalDate.now(SCHEDULE_ZONE))
+        .stream()
         .map(RecurringTransaction::getId)
         .toList();
   }
@@ -165,7 +176,7 @@ public class RecurringTransactionService {
     if (template == null || !template.isActive()) {
       return 0;
     }
-    return materializeOne(template, LocalDate.now());
+    return materializeOne(template, LocalDate.now(SCHEDULE_ZONE));
   }
 
   /**
