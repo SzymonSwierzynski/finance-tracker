@@ -27,6 +27,7 @@ frontend/dist/
 
 # Agent working notes — kept locally, not part of the codebase
 HANDOFF.md
+review.md
 # Root contract/instructions kept local-only (anchored so reference/.../CLAUDE.md stays tracked)
 /CLAUDE.md
 /claude.md
