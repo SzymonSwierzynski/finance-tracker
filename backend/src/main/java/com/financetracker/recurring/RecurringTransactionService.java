@@ -20,8 +20,10 @@ import com.financetracker.transaction.TransactionType;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -136,48 +138,68 @@ public class RecurringTransactionService {
   @Transactional
   public RunRecurringResponse run(long userId) {
     LocalDate today = LocalDate.now();
-    return new RunRecurringResponse(
-        materialize(
-            recurringRepository.findByUserIdAndActiveTrueAndNextRunDateLessThanEqual(userId, today),
-            today));
+    int created = 0;
+    for (RecurringTransaction template :
+        recurringRepository.findByUserIdAndActiveTrueAndNextRunDateLessThanEqual(userId, today)) {
+      created += materializeOne(template, today);
+    }
+    return new RunRecurringResponse(created);
   }
 
-  /** Materialize every active, due template across all users — driven by the scheduled sweep. */
-  @Transactional
-  public int materializeAllDue() {
-    LocalDate today = LocalDate.now();
-    return materialize(
-        recurringRepository.findByActiveTrueAndNextRunDateLessThanEqual(today), today);
+  /** Ids of every active, due template across all users — for the scheduled per-template sweep. */
+  @Transactional(readOnly = true)
+  public List<Long> dueTemplateIds() {
+    return recurringRepository.findByActiveTrueAndNextRunDateLessThanEqual(LocalDate.now()).stream()
+        .map(RecurringTransaction::getId)
+        .toList();
   }
 
   /**
-   * Advance each template through its due occurrences (catching up past ones, capped) until it
-   * passes today or its end date, creating a transaction per occurrence; a completed template is
-   * deactivated. The rate is resolved per template's owner so this works cross-user.
+   * Materialize a single template in its own transaction — the sweep calls this per id so one
+   * template's optimistic-lock conflict rolls back only that template, not the whole night's run.
+   * Returns how many transactions it created (0 if the template vanished or is no longer active).
    */
-  private int materialize(List<RecurringTransaction> due, LocalDate today) {
+  @Transactional
+  public int materializeTemplate(long templateId) {
+    RecurringTransaction template = recurringRepository.findById(templateId).orElse(null);
+    if (template == null || !template.isActive()) {
+      return 0;
+    }
+    return materializeOne(template, LocalDate.now());
+  }
+
+  /**
+   * Advance one template through its due occurrences (catching up past ones, capped) creating a
+   * transaction per occurrence — skipping any whose dedupe hash already exists (a backstop
+   * consistent with import/restore, should a run and the sweep overlap). A completed template is
+   * deactivated. Not {@code @Transactional} itself — the caller owns the boundary (per-template for
+   * the sweep, per-request for {@code /run}). The rate is resolved per template owner (cross-user).
+   */
+  private int materializeOne(RecurringTransaction template, LocalDate today) {
+    BigDecimal rate = rateResolver.resolve(template.getUserId(), template.getCurrency(), null);
+    Set<String> hashes =
+        new HashSet<>(
+            transactionRepository.findDedupeHashesByUserIdAndAccountId(
+                template.getUserId(), template.getAccountId()));
     List<Transaction> toInsert = new ArrayList<>();
-    for (RecurringTransaction template : due) {
-      BigDecimal rate = rateResolver.resolve(template.getUserId(), template.getCurrency(), null);
-      int guard = 0;
-      while (!template.getNextRunDate().isAfter(today)
-          && (template.getEndDate() == null
-              || !template.getNextRunDate().isAfter(template.getEndDate()))
-          && guard < MAX_MATERIALIZE_PER_RUN) {
-        toInsert.add(newTransaction(template, template.getNextRunDate(), rate));
-        template.setNextRunDate(
-            template
-                .getFrequency()
-                .advance(template.getNextRunDate(), template.getIntervalCount()));
-        guard++;
+    int guard = 0;
+    while (!template.getNextRunDate().isAfter(today)
+        && (template.getEndDate() == null
+            || !template.getNextRunDate().isAfter(template.getEndDate()))
+        && guard < MAX_MATERIALIZE_PER_RUN) {
+      Transaction tx = newTransaction(template, template.getNextRunDate(), rate);
+      if (hashes.add(tx.getDedupeHash())) { // skip an occurrence already present (dedupe backstop)
+        toInsert.add(tx);
       }
-      if (template.getEndDate() != null
-          && template.getNextRunDate().isAfter(template.getEndDate())) {
-        template.setActive(false);
-      }
+      template.setNextRunDate(
+          template.getFrequency().advance(template.getNextRunDate(), template.getIntervalCount()));
+      guard++;
+    }
+    if (template.getEndDate() != null && template.getNextRunDate().isAfter(template.getEndDate())) {
+      template.setActive(false);
     }
     transactionRepository.saveAll(toInsert);
-    recurringRepository.saveAll(due);
+    recurringRepository.save(template);
     return toInsert.size();
   }
 

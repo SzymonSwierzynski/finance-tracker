@@ -26,9 +26,27 @@ public class RecurringMaterializer {
   /** Runs nightly by default; the cron is overridable per environment. */
   @Scheduled(cron = "${app.recurring.materialize-cron:0 30 3 * * *}")
   public void materializeDue() {
-    int created = recurringService.materializeAllDue();
+    int created = materializeAll();
     if (created > 0) {
       log.info("Materialized {} recurring transaction(s)", created);
     }
+  }
+
+  /**
+   * Materialize each due template in its own transaction, so one template's optimistic-lock
+   * conflict (e.g. a user hitting {@code /recurring/run} mid-sweep) is isolated and logged rather
+   * than rolling back — and silently skipping — every user's schedule for the night. Returns the
+   * total number of transactions created across all templates.
+   */
+  int materializeAll() {
+    int total = 0;
+    for (Long id : recurringService.dueTemplateIds()) {
+      try {
+        total += recurringService.materializeTemplate(id);
+      } catch (RuntimeException e) {
+        log.warn("Skipping recurring template {} this run: {}", id, e.toString());
+      }
+    }
+    return total;
   }
 }

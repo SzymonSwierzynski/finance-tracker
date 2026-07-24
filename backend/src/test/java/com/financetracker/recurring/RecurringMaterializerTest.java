@@ -16,15 +16,15 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MvcResult;
 
 /**
- * The scheduled nightly sweep ({@link RecurringMaterializer} → {@code materializeAllDue}) advances
- * every user's due templates in one pass, with no request-scoped user. The correctness point: each
- * transaction locks the rate from its <em>own owner's</em> FX table, not some single caller's — so
- * a cross-user run stays correct (CLAUDE.md §7). Two users hold the same currency at different
+ * The scheduled nightly sweep ({@link RecurringMaterializer#materializeAll}) advances every user's
+ * due templates, each in its own transaction, with no request-scoped user. The correctness point:
+ * each transaction locks the rate from its <em>own owner's</em> FX table, not some single caller's —
+ * so a cross-user run stays correct (CLAUDE.md §7). Two users hold the same currency at different
  * rates to prove exactly that.
  */
 class RecurringMaterializerTest extends AbstractIntegrationTest {
 
-  @Autowired private RecurringTransactionService recurringService;
+  @Autowired private RecurringMaterializer recurringMaterializer;
 
   @Test
   void sweepMaterializesEveryUsersDueTemplatesEachWithItsOwnLockedRate() throws Exception {
@@ -39,7 +39,8 @@ class RecurringMaterializerTest extends AbstractIntegrationTest {
     createEurRecurring(alice, aliceAccount, 10000);
     createEurRecurring(bob, bobAccount, 20000);
 
-    int created = recurringService.materializeAllDue();
+    // Per-template sweep: one template's conflict can't roll back the rest.
+    int created = recurringMaterializer.materializeAll();
 
     // The sweep is global and the Testcontainers Postgres is shared across the whole suite (no
     // rollback), so sibling tests' active templates are swept too — hence assert on our own users'
