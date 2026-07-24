@@ -34,6 +34,9 @@ function StatCard({
 }) {
   const formatMoney = useFormatMoney()
   const ring = tone === 'income' ? 'ring-positive/20' : tone === 'expense' ? 'ring-negative/20' : 'ring-brand-200'
+  // Colour the amount by tone (income green, expense red, net neutral) rather than by sign — expense
+  // totals are positive numbers, so a sign-based colour would show them green like income.
+  const amount = tone === 'income' ? 'text-positive' : tone === 'expense' ? 'text-negative' : ''
 
   let delta: ReactNode = null
   if (previousMinor !== undefined) {
@@ -55,8 +58,8 @@ function StatCard({
   return (
     <Card className={`p-5 ring-1 ${ring}`}>
       <p className="text-sm text-fg-soft">{label}</p>
-      <p className="mt-2 text-2xl font-semibold">
-        <Money minor={minor} currency={currency} colored={tone !== 'net'} />
+      <p className={`mt-2 text-2xl font-semibold ${amount}`}>
+        <Money minor={minor} currency={currency} />
       </p>
       {delta}
     </Card>
