@@ -46,6 +46,7 @@ const resources = {
       categories: {
         title: 'Categories', new: 'New category', name: 'Name', kind: 'Kind', color: 'Color',
         parent: 'Parent category', topLevel: 'Top-level (no parent)', expense: 'Expense', income: 'Income',
+        expand: 'Expand', collapse: 'Collapse', expandAll: 'Expand all', collapseAll: 'Collapse all',
         empty: 'No categories yet — add your first one.', deleteConfirm: 'Delete this category? Its subcategories are removed and affected transactions become uncategorized.',
         deleted: 'Category deleted ({{count}} transaction(s) uncategorized).',
       },
@@ -156,6 +157,7 @@ const resources = {
       categories: {
         title: 'Kategorie', new: 'Nowa kategoria', name: 'Nazwa', kind: 'Rodzaj', color: 'Kolor',
         parent: 'Kategoria nadrzędna', topLevel: 'Najwyższy poziom (bez nadrzędnej)', expense: 'Wydatki', income: 'Przychody',
+        expand: 'Rozwiń', collapse: 'Zwiń', expandAll: 'Rozwiń wszystko', collapseAll: 'Zwiń wszystko',
         empty: 'Brak kategorii — dodaj pierwszą.', deleteConfirm: 'Usunąć tę kategorię? Podkategorie zostaną usunięte, a powiązane transakcje stracą kategorię.',
         deleted: 'Usunięto kategorię ({{count}} transakcji bez kategorii).',
       },

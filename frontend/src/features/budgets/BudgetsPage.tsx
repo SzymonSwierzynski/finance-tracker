@@ -46,7 +46,7 @@ export function BudgetsPage() {
               value={month}
               onChange={(e) => setMonth(e.target.value)}
               aria-label={t('budgets.month')}
-              className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700"
+              className="rounded-lg border border-border px-3 py-2 text-sm text-fg-muted"
             />
             <Button onClick={openCreate}>{t('budgets.new')}</Button>
           </>
@@ -82,7 +82,7 @@ export function BudgetsPage() {
                       className="h-3 w-3 shrink-0 rounded-full"
                       style={{ backgroundColor: b.color }}
                     />
-                    <span className="truncate text-sm font-medium text-slate-800">
+                    <span className="truncate text-sm font-medium text-fg">
                       {b.categoryName}
                     </span>
                   </div>
@@ -96,23 +96,35 @@ export function BudgetsPage() {
                   </div>
                 </div>
                 <div
-                  className="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-100"
+                  className="mt-3 h-2 w-full overflow-hidden rounded-full bg-surface-2"
                   role="progressbar"
                   aria-valuenow={pct}
                   aria-valuemin={0}
                   aria-valuemax={100}
                 >
                   <div
-                    className={`h-full rounded-full ${b.over ? 'bg-negative' : 'bg-brand-500'}`}
-                    style={{ width: `${pct}%` }}
+                    className="h-full rounded-full transition-[width] duration-700 ease-out"
+                    style={
+                      b.over
+                        ? { width: '100%', background: '#ef4444' }
+                        : {
+                            // Gradient anchored to the FULL track (background-size = track/fill), so the
+                            // fill's leading edge shows the "health" colour at the current spend %.
+                            width: `${pct}%`,
+                            backgroundImage:
+                              'linear-gradient(90deg, #10b981 0%, #eab308 55%, #f97316 80%, #ef4444 100%)',
+                            backgroundSize: `${pct > 0 ? (100 / pct) * 100 : 100}% 100%`,
+                            backgroundRepeat: 'no-repeat',
+                          }
+                    }
                   />
                 </div>
-                <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
+                <div className="mt-2 flex items-center justify-between text-xs text-fg-soft">
                   <span>
                     <Money minor={b.spentMinor} currency={currency} /> /{' '}
                     <Money minor={b.amountMinor} currency={currency} />
                   </span>
-                  <span className={b.over ? 'font-medium text-negative' : 'text-slate-600'}>
+                  <span className={b.over ? 'font-medium text-negative' : 'text-fg-muted'}>
                     {b.over ? t('budgets.over') : t('budgets.left')}:{' '}
                     <Money minor={Math.abs(b.remainingMinor)} currency={currency} />
                   </span>

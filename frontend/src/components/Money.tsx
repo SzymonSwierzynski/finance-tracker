@@ -24,7 +24,7 @@ interface MoneyProps {
 /** Renders integer minor units as formatted currency (division by 100 happens only here). */
 export function Money({ minor, currency = 'PLN', colored = false, signDisplay = 'auto', className = '' }: MoneyProps) {
   const format = useFormatMoney()
-  const tone = colored ? (minor < 0 ? 'text-negative' : minor > 0 ? 'text-positive' : 'text-slate-500') : ''
+  const tone = colored ? (minor < 0 ? 'text-negative' : minor > 0 ? 'text-positive' : 'text-fg-soft') : ''
   return (
     <span className={`tabular-nums ${tone} ${className}`} title={`${minor} minor units`}>
       {format(minor, currency, { signDisplay })}

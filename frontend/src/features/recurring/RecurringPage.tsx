@@ -71,12 +71,12 @@ export function RecurringPage() {
           action={<Button onClick={() => setFormOpen(true)}>{t('recurring.new')}</Button>}
         />
       ) : (
-        <Card className="divide-y divide-slate-100 px-5">
+        <Card className="divide-y divide-border-subtle px-5">
           {data.map((r) => (
             <div key={r.id} className="flex items-center justify-between gap-3 py-3">
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-slate-800">{r.description || '—'}</p>
-                <p className="text-xs text-slate-500">
+                <p className="truncate text-sm font-medium text-fg">{r.description || '—'}</p>
+                <p className="text-xs text-fg-soft">
                   {t(`recurring.${r.frequency}`)}
                   {r.intervalCount > 1 ? ` ×${r.intervalCount}` : ''} · {t('recurring.next')}:{' '}
                   {formatDate(r.nextRunDate, locale)}

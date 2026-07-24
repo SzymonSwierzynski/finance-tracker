@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/features/auth/AuthProvider'
+import { useTheme } from '@/lib/theme'
 
 const navItems = [
   { to: '/', key: 'nav.dashboard', end: true },
@@ -20,10 +21,11 @@ const navItems = [
 export function AppLayout({ children }: { children: ReactNode }) {
   const { t, i18n } = useTranslation()
   const { user, logout } = useAuth()
+  const { theme, toggle: toggleTheme } = useTheme()
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     `rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-      isActive ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+      isActive ? 'bg-accent-soft text-accent' : 'text-fg-muted hover:bg-surface-2 hover:text-fg'
     }`
 
   const toggleLang = () => void i18n.changeLanguage(i18n.language.startsWith('pl') ? 'en' : 'pl')
@@ -31,10 +33,10 @@ export function AppLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[16rem_1fr]">
       {/* Sidebar (desktop) */}
-      <aside className="hidden border-r border-slate-200 bg-white lg:flex lg:flex-col">
+      <aside className="hidden border-r border-border bg-surface lg:flex lg:flex-col">
         <div className="flex items-center gap-2 px-6 py-5">
           <span className="flex size-8 items-center justify-center rounded-lg bg-brand-600 font-bold text-white">₣</span>
-          <span className="font-semibold text-slate-900">{t('app.name')}</span>
+          <span className="font-semibold text-fg">{t('app.name')}</span>
         </div>
         <nav className="flex flex-1 flex-col gap-1 px-3">
           {navItems.map((item) => (
@@ -43,9 +45,9 @@ export function AppLayout({ children }: { children: ReactNode }) {
             </NavLink>
           ))}
         </nav>
-        <div className="border-t border-slate-200 p-3">
-          <p className="truncate px-3 pb-2 text-xs text-slate-500">{user?.email}</p>
-          <button onClick={() => void logout()} className="w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-slate-600 hover:bg-slate-100">
+        <div className="border-t border-border p-3">
+          <p className="truncate px-3 pb-2 text-xs text-fg-soft">{user?.email}</p>
+          <button onClick={() => void logout()} className="w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-fg-muted hover:bg-surface-2">
             {t('nav.logout')}
           </button>
         </div>
@@ -53,7 +55,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
 
       {/* Main column */}
       <div className="flex min-h-dvh flex-col">
-        <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 lg:px-8">
+        <header className="flex items-center justify-between border-b border-border bg-surface px-4 py-3 lg:px-8">
           {/* Mobile nav */}
           <nav className="flex gap-1 overflow-x-auto lg:hidden">
             {navItems.map((item) => (
@@ -65,13 +67,20 @@ export function AppLayout({ children }: { children: ReactNode }) {
           <div className="hidden lg:block" />
           <div className="flex items-center gap-2">
             <button
+              onClick={toggleTheme}
+              className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-fg-soft ring-1 ring-inset ring-border hover:bg-surface-2"
+              aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+            >
+              {theme === 'dark' ? '☀' : '☾'}
+            </button>
+            <button
               onClick={toggleLang}
-              className="rounded-lg px-2.5 py-1.5 text-xs font-semibold uppercase text-slate-500 ring-1 ring-inset ring-slate-200 hover:bg-slate-50"
+              className="rounded-lg px-2.5 py-1.5 text-xs font-semibold uppercase text-fg-soft ring-1 ring-inset ring-border hover:bg-surface-2"
               aria-label="Toggle language"
             >
               {i18n.language.startsWith('pl') ? 'PL' : 'EN'}
             </button>
-            <button onClick={() => void logout()} className="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 lg:hidden">
+            <button onClick={() => void logout()} className="rounded-lg px-3 py-1.5 text-sm font-medium text-fg-muted hover:bg-surface-2 lg:hidden">
               {t('nav.logout')}
             </button>
           </div>

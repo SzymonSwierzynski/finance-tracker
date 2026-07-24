@@ -126,10 +126,10 @@ export function ImportPage() {
           {([1, 2, 3] as const).map((s) => (
             <li
               key={s}
-              className={`flex items-center gap-2 rounded-full px-3 py-1 ${step === s ? 'bg-brand-50 text-brand-700' : 'text-slate-400'}`}
+              className={`flex items-center gap-2 rounded-full px-3 py-1 ${step === s ? 'bg-accent-soft text-accent' : 'text-fg-subtle'}`}
             >
               <span
-                className={`flex size-5 items-center justify-center rounded-full ${step >= s ? 'bg-brand-600 text-white' : 'bg-slate-200'}`}
+                className={`flex size-5 items-center justify-center rounded-full ${step >= s ? 'bg-brand-600 text-white' : 'bg-border'}`}
               >
                 {s}
               </span>
@@ -160,7 +160,7 @@ export function ImportPage() {
                 type="file"
                 accept=".csv,text/csv"
                 onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-                className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-brand-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-brand-700 hover:file:bg-brand-100"
+                className="block w-full text-sm text-fg-muted file:mr-3 file:rounded-lg file:border-0 file:bg-accent-soft file:px-3 file:py-2 file:text-sm file:font-medium file:text-accent hover:file:bg-accent-soft"
               />
             </Field>
             <Button onClick={goToMapping} disabled={typeof accountId !== 'number' || !file}>
@@ -310,9 +310,9 @@ export function ImportPage() {
                 {t('import.invalid', { count: previewData.totalRows - previewData.validRows })}
               </Badge>
             </div>
-            <div className="max-h-96 overflow-auto rounded-lg border border-slate-200">
+            <div className="max-h-96 overflow-auto rounded-lg border border-border">
               <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-slate-50 text-left text-xs text-slate-500">
+                <thead className="sticky top-0 bg-surface-2 text-left text-xs text-fg-soft">
                   <tr>
                     <th className="px-3 py-2 font-medium">{t('transactions.date')}</th>
                     <th className="px-3 py-2 font-medium">{t('transactions.description')}</th>
@@ -320,11 +320,11 @@ export function ImportPage() {
                     <th className="px-3 py-2 font-medium">{t('common.actions')}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-border-subtle">
                   {previewData.rows.map((row) => (
                     <tr
                       key={row.index}
-                      className={!row.valid ? 'bg-red-50/60' : row.duplicate ? 'text-slate-400' : ''}
+                      className={!row.valid ? 'bg-red-50/60' : row.duplicate ? 'text-fg-subtle' : ''}
                     >
                       <td className="whitespace-nowrap px-3 py-1.5">{row.date ?? '—'}</td>
                       <td className="max-w-xs truncate px-3 py-1.5">{row.description}</td>
@@ -364,20 +364,20 @@ export function ImportPage() {
       </Card>
 
       <div>
-        <h2 className="mb-3 text-lg font-semibold text-slate-900">{t('import.batches')}</h2>
+        <h2 className="mb-3 text-lg font-semibold text-fg">{t('import.batches')}</h2>
         {batches.isLoading ? (
           <Card className="p-5">
             <Skeleton className="h-5 w-48" />
           </Card>
         ) : !batches.data?.length ? (
-          <Card className="p-5 text-sm text-slate-500">{t('import.noBatches')}</Card>
+          <Card className="p-5 text-sm text-fg-soft">{t('import.noBatches')}</Card>
         ) : (
-          <Card className="divide-y divide-slate-100 px-5">
+          <Card className="divide-y divide-border-subtle px-5">
             {batches.data.map((b) => (
               <div key={b.id} className="flex items-center justify-between py-3">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-slate-800">{b.fileName}</p>
-                  <p className="text-xs text-slate-500">
+                  <p className="truncate text-sm font-medium text-fg">{b.fileName}</p>
+                  <p className="text-xs text-fg-soft">
                     {t('import.rows', { count: b.count })} · {new Date(b.createdAt).toLocaleString()}
                   </p>
                 </div>

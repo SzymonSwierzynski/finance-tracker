@@ -145,7 +145,7 @@ export function TransactionsPage() {
       </Card>
 
       {isLoading ? (
-        <Card className="divide-y divide-slate-100">
+        <Card className="divide-y divide-border-subtle">
           {[0, 1, 2, 3, 4].map((i) => (
             <div key={i} className="flex items-center justify-between p-4">
               <Skeleton className="h-4 w-40" />
@@ -162,40 +162,40 @@ export function TransactionsPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
+                <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-fg-soft">
                   <th className="px-4 py-3 font-medium">
                     <button
-                      className="inline-flex items-center gap-1 hover:text-slate-700"
+                      className="inline-flex items-center gap-1 hover:text-fg-muted"
                       onClick={() => toggleSort('date')}
                     >
-                      {t('transactions.date')} <span className="text-slate-400">{sortArrow('date')}</span>
+                      {t('transactions.date')} <span className="text-fg-subtle">{sortArrow('date')}</span>
                     </button>
                   </th>
                   <th className="px-4 py-3 font-medium">{t('transactions.description')}</th>
                   <th className="px-4 py-3 font-medium">{t('transactions.account')}</th>
                   <th className="px-4 py-3 text-right font-medium">
                     <button
-                      className="ml-auto inline-flex items-center gap-1 hover:text-slate-700"
+                      className="ml-auto inline-flex items-center gap-1 hover:text-fg-muted"
                       onClick={() => toggleSort('amount')}
                     >
-                      {t('transactions.amount')} <span className="text-slate-400">{sortArrow('amount')}</span>
+                      {t('transactions.amount')} <span className="text-fg-subtle">{sortArrow('amount')}</span>
                     </button>
                   </th>
                   <th className="px-4 py-3 text-right font-medium">{t('transactions.baseValue')}</th>
                   <th className="px-4 py-3" />
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-border-subtle">
                 {data.items.map((tx) => (
-                  <tr key={tx.id} className="hover:bg-slate-50">
-                    <td className="whitespace-nowrap px-4 py-3 text-slate-500">{formatDate(tx.date, locale)}</td>
+                  <tr key={tx.id} className="hover:bg-surface-2">
+                    <td className="whitespace-nowrap px-4 py-3 text-fg-soft">{formatDate(tx.date, locale)}</td>
                     <td className="px-4 py-3">
-                      <div className="font-medium text-slate-800">{tx.description || '—'}</div>
+                      <div className="font-medium text-fg">{tx.description || '—'}</div>
                       {tx.type === 'transfer' ? (
-                        <div className="text-xs text-slate-400">→ {accountName(tx.counterAccountId)}</div>
+                        <div className="text-xs text-fg-subtle">→ {accountName(tx.counterAccountId)}</div>
                       ) : (
                         categoryName(tx.categoryId) && (
-                          <div className="text-xs text-slate-400">{categoryName(tx.categoryId)}</div>
+                          <div className="text-xs text-fg-subtle">{categoryName(tx.categoryId)}</div>
                         )
                       )}
                     </td>
@@ -203,7 +203,7 @@ export function TransactionsPage() {
                       <Badge tone={tx.type === 'income' ? 'green' : tx.type === 'expense' ? 'red' : 'slate'}>
                         {t(`transactions.${tx.type}`)}
                       </Badge>
-                      <span className="ml-2 text-slate-500">{accountName(tx.accountId)}</span>
+                      <span className="ml-2 text-fg-soft">{accountName(tx.accountId)}</span>
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-right font-medium">
                       {tx.type === 'transfer' ? (
@@ -217,7 +217,7 @@ export function TransactionsPage() {
                         />
                       )}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right text-slate-500">
+                    <td className="whitespace-nowrap px-4 py-3 text-right text-fg-soft">
                       <Money minor={tx.baseMinor} currency={baseCurrency} />
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-right">
@@ -242,7 +242,7 @@ export function TransactionsPage() {
               </tbody>
             </table>
           </div>
-          <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3 text-sm text-slate-500">
+          <div className="flex items-center justify-between border-t border-border px-4 py-3 text-sm text-fg-soft">
             <span>{total}</span>
             <div className="flex items-center gap-2">
               <Button variant="secondary" size="sm" disabled={page <= 0} onClick={() => setPage((p) => Math.max(0, p - 1))}>

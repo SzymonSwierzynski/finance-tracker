@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Category, CategoryKind } from '@/api'
 import { CATEGORY_KINDS } from '@/api'
@@ -11,21 +11,41 @@ function Swatch({ color }: { color: string }) {
   return <span className="inline-block size-3 shrink-0 rounded-full" style={{ backgroundColor: color }} />
 }
 
+function Chevron({ open }: { open: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={`size-3.5 transition-transform duration-200 ${open ? 'rotate-90' : ''}`}
+    >
+      <path d="M9 6l6 6-6 6" />
+    </svg>
+  )
+}
+
 function Row({
   category,
   child,
+  leading,
   onEdit,
   onDelete,
 }: {
   category: Category
   child?: boolean
+  leading?: ReactNode
   onEdit: (c: Category) => void
   onDelete: (c: Category) => void
 }) {
   const { t } = useTranslation()
   return (
     <div className={`flex items-center justify-between py-2.5 ${child ? 'pl-8' : ''}`}>
-      <span className="flex items-center gap-2 text-sm text-slate-800">
+      <span className="flex items-center gap-2 text-sm text-fg">
+        {leading}
         <Swatch color={category.color} />
         {category.name}
       </span>
@@ -47,6 +67,8 @@ export function CategoriesPage() {
   const [kind, setKind] = useState<CategoryKind>('expense')
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Category | undefined>(undefined)
+  // Which parent ids are collapsed (empty = everything expanded, i.e. the previous behaviour).
+  const [collapsed, setCollapsed] = useState<Set<number>>(() => new Set())
   const { data, isLoading, isError, refetch } = useCategories(kind)
   const del = useDeleteCategory()
 
@@ -56,6 +78,19 @@ export function CategoriesPage() {
     const childrenOf = (id: number) => all.filter((c) => c.parentId === id)
     return tops.map((top) => ({ top, children: childrenOf(top.id) }))
   }, [data])
+
+  const parentsWithChildren = grouped.filter((g) => g.children.length > 0).map((g) => g.top.id)
+  const allCollapsed =
+    parentsWithChildren.length > 0 && parentsWithChildren.every((id) => collapsed.has(id))
+
+  const toggle = (id: number) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  const toggleAll = () => setCollapsed(allCollapsed ? new Set() : new Set(parentsWithChildren))
 
   const openCreate = () => {
     setEditing(undefined)
@@ -79,12 +114,17 @@ export function CategoriesPage() {
         title={t('categories.title')}
         actions={
           <>
-            <div className="flex rounded-lg bg-slate-100 p-0.5">
+            {parentsWithChildren.length > 0 && (
+              <Button variant="secondary" onClick={toggleAll}>
+                {allCollapsed ? t('categories.expandAll') : t('categories.collapseAll')}
+              </Button>
+            )}
+            <div className="flex rounded-lg bg-surface-2 p-0.5">
               {CATEGORY_KINDS.map((k) => (
                 <button
                   key={k}
                   onClick={() => setKind(k)}
-                  className={`rounded-md px-3 py-1.5 text-sm font-medium ${kind === k ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
+                  className={`rounded-md px-3 py-1.5 text-sm font-medium ${kind === k ? 'bg-surface text-fg shadow-sm' : 'text-fg-soft'}`}
                 >
                   {t(`categories.${k}`)}
                 </button>
@@ -106,15 +146,46 @@ export function CategoriesPage() {
       ) : grouped.length === 0 ? (
         <CenteredState title={t('categories.empty')} action={<Button onClick={openCreate}>{t('categories.new')}</Button>} />
       ) : (
-        <Card className="divide-y divide-slate-100 px-5">
-          {grouped.map(({ top, children }) => (
-            <div key={top.id} className="py-1">
-              <Row category={top} onEdit={openEdit} onDelete={onDelete} />
-              {children.map((c) => (
-                <Row key={c.id} category={c} child onEdit={openEdit} onDelete={onDelete} />
-              ))}
-            </div>
-          ))}
+        <Card className="divide-y divide-border-subtle px-5">
+          {grouped.map(({ top, children }) => {
+            const hasChildren = children.length > 0
+            const isOpen = !collapsed.has(top.id)
+            return (
+              <div key={top.id} className="py-1">
+                <Row
+                  category={top}
+                  onEdit={openEdit}
+                  onDelete={onDelete}
+                  leading={
+                    hasChildren ? (
+                      <button
+                        onClick={() => toggle(top.id)}
+                        aria-expanded={isOpen}
+                        aria-label={`${isOpen ? t('categories.collapse') : t('categories.expand')} ${top.name}`}
+                        className="-ml-1 flex size-5 items-center justify-center rounded text-fg-subtle hover:bg-surface-2 hover:text-fg"
+                      >
+                        <Chevron open={isOpen} />
+                      </button>
+                    ) : (
+                      <span className="inline-block size-5" aria-hidden="true" />
+                    )
+                  }
+                />
+                {hasChildren && (
+                  <div
+                    className="grid transition-[grid-template-rows] duration-200 ease-out"
+                    style={{ gridTemplateRows: isOpen ? '1fr' : '0fr' }}
+                  >
+                    <div className="overflow-hidden">
+                      {children.map((c) => (
+                        <Row key={c.id} category={c} child onEdit={openEdit} onDelete={onDelete} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </Card>
       )}
 

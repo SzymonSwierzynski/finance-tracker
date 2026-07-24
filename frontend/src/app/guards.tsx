@@ -6,7 +6,7 @@ import { AppLayout } from './AppLayout'
 
 function FullScreenLoader() {
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-slate-50 text-brand-600">
+    <div className="flex min-h-dvh items-center justify-center bg-surface-2 text-accent">
       <Spinner className="size-8" />
     </div>
   )

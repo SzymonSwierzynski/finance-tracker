@@ -12,8 +12,8 @@ function BalanceRow({ account }: { account: Account }) {
   const { data, isLoading } = useAccountBalance(account.id, account.trackBalance)
   if (!account.trackBalance) return null
   return (
-    <div className="mt-3 flex items-baseline justify-between border-t border-slate-100 pt-3">
-      <span className="text-xs text-slate-500">{t('accounts.balance')}</span>
+    <div className="mt-3 flex items-baseline justify-between border-t border-border-subtle pt-3">
+      <span className="text-xs text-fg-soft">{t('accounts.balance')}</span>
       {isLoading || !data ? (
         <Skeleton className="h-5 w-20" />
       ) : (
@@ -40,10 +40,10 @@ function AccountCard({ account, onEdit }: { account: Account; onEdit: (a: Accoun
     <Card className="p-5">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <p className="font-semibold text-slate-900">{account.name}</p>
+          <p className="font-semibold text-fg">{account.name}</p>
           <div className="mt-1 flex items-center gap-2">
             <Badge tone="indigo">{t(`accounts.${account.type}`)}</Badge>
-            <span className="text-xs text-slate-500">{account.currency}</span>
+            <span className="text-xs text-fg-soft">{account.currency}</span>
             {account.archived && <Badge>{t('accounts.archived')}</Badge>}
           </div>
         </div>
@@ -85,10 +85,10 @@ export function AccountsPage() {
         title={t('accounts.title')}
         actions={
           <>
-            <label className="flex items-center gap-2 text-sm text-slate-600">
+            <label className="flex items-center gap-2 text-sm text-fg-muted">
               <input
                 type="checkbox"
-                className="size-4 rounded border-slate-300 text-brand-600"
+                className="size-4 rounded border-border-strong text-accent"
                 checked={showArchived}
                 onChange={(e) => setShowArchived(e.target.checked)}
               />

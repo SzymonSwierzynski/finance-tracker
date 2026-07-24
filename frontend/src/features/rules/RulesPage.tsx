@@ -76,12 +76,12 @@ export function RulesPage() {
           action={<Button onClick={openCreate}>{t('rules.new')}</Button>}
         />
       ) : (
-        <Card className="divide-y divide-slate-100 px-5">
+        <Card className="divide-y divide-border-subtle px-5">
           {rules.map((rule) => (
             <div key={rule.id} className="flex items-center justify-between gap-3 py-3">
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-slate-800">&ldquo;{rule.pattern}&rdquo;</p>
-                <p className="text-xs text-slate-500">→ {categoryName(rule.categoryId)}</p>
+                <p className="truncate text-sm font-medium text-fg">&ldquo;{rule.pattern}&rdquo;</p>
+                <p className="text-xs text-fg-soft">→ {categoryName(rule.categoryId)}</p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 <Badge tone="slate">

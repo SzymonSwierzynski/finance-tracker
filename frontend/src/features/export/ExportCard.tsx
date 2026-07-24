@@ -50,8 +50,8 @@ export function ExportCard() {
 
   return (
     <Card className="max-w-md p-5">
-      <h2 className="text-sm font-semibold text-slate-700">{t('export.title')}</h2>
-      <p className="mt-1 text-xs text-slate-500">{t('export.hint')}</p>
+      <h2 className="text-sm font-semibold text-fg-muted">{t('export.title')}</h2>
+      <p className="mt-1 text-xs text-fg-soft">{t('export.hint')}</p>
       <div className="mt-4 flex flex-wrap gap-2">
         <Button variant="secondary" loading={busy === 'csv'} onClick={() => void run('csv')}>
           {t('export.csv')}

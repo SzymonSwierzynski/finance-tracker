@@ -1,7 +1,14 @@
 @import 'tailwindcss';
 
-/* Design tokens — a calm, finance-appropriate palette. Tailwind v4 reads these
-   @theme values to generate utilities (e.g. bg-brand-600, text-positive). */
+/* Class-based dark mode: `dark:` variants and the token overrides below key off a `.dark`
+   class on <html> (set pre-paint in index.html, toggled at runtime via lib/theme). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Design tokens. The neutral surface/text/border colors are SEMANTIC and flip in dark mode
+   (see the .dark block); brand/positive/negative keep their scale, but the shades used as
+   text or soft fills are lightened under .dark for contrast. Tailwind v4 turns each --color-*
+   into utilities (bg-surface, text-fg, border-border …) that reference var(), so overriding a
+   token in a scope re-themes the whole app. */
 @theme {
   --color-brand-50: #eef2ff;
   --color-brand-100: #e0e7ff;
@@ -14,22 +21,64 @@
   --color-brand-800: #3730a3;
   --color-brand-900: #312e81;
 
+  /* Semantic neutrals (light) */
+  --color-canvas: #f8fafc; /* page background (slate-50) */
+  --color-surface: #ffffff; /* cards, inputs, header/sidebar */
+  --color-surface-2: #f1f5f9; /* subtle blocks + hovers (slate-100) */
+  --color-fg: #0f172a; /* primary text (slate-900) */
+  --color-fg-muted: #334155; /* labels / secondary (slate-700) */
+  --color-fg-soft: #64748b; /* captions (slate-500) */
+  --color-fg-subtle: #94a3b8; /* placeholders / icons (slate-400) */
+  --color-border: #e2e8f0; /* default borders (slate-200) */
+  --color-border-subtle: #f1f5f9; /* dividers (slate-100) */
+  --color-border-strong: #cbd5e1; /* rings / dashed (slate-300) */
+
+  /* Accents used as text / soft fills (flip under .dark) */
+  --color-accent: #4f46e5; /* brand text / emphasis (brand-600) */
+  --color-accent-soft: #eef2ff; /* indigo soft background (brand-50) */
+
   --color-positive: #047857;
   --color-positive-soft: #ecfdf5;
   --color-negative: #b91c1c;
   --color-negative-soft: #fef2f2;
 }
 
+/* Dark theme. Unlayered so it wins over the @theme :root (which lands in the `theme` layer);
+   utilities re-resolve through var() the moment <html> gains the `.dark` class. */
+.dark {
+  --color-canvas: #0b1120;
+  --color-surface: #0f172a;
+  --color-surface-2: #1e293b;
+  --color-fg: #f8fafc;
+  --color-fg-muted: #cbd5e1;
+  --color-fg-soft: #94a3b8;
+  --color-fg-subtle: #64748b;
+  --color-border: #1e293b;
+  --color-border-subtle: #1e293b;
+  --color-border-strong: #334155;
+
+  --color-accent: #a5b4fc; /* lighter indigo for text on dark */
+  --color-accent-soft: #1e1b4b; /* deep indigo soft background */
+
+  --color-positive: #34d399; /* emerald-400 */
+  --color-positive-soft: #052e2b;
+  --color-negative: #f87171; /* red-400 */
+  --color-negative-soft: #3f1414;
+
+  color-scheme: dark; /* native form controls, scrollbars */
+}
+
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;
+    color-scheme: light;
   }
   body {
-    @apply bg-slate-50 text-slate-900 antialiased;
+    @apply bg-canvas text-fg antialiased;
     font-feature-settings: 'tnum' 1; /* tabular figures for money columns */
   }
-  /* Visible focus rings everywhere (a11y). */
+  /* Visible focus rings everywhere (a11y). Offset matches the surface elements sit on. */
   :focus-visible {
-    @apply outline-none ring-2 ring-brand-500 ring-offset-2 ring-offset-white;
+    @apply outline-none ring-2 ring-brand-500 ring-offset-2 ring-offset-surface;
   }
 }

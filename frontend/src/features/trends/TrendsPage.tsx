@@ -8,7 +8,6 @@ import {
   Legend,
   Line,
   ResponsiveContainer,
-  Tooltip,
   XAxis,
   YAxis,
 } from 'recharts'
@@ -20,6 +19,7 @@ import type { DateRange, PeriodPresetId } from '@/lib/date'
 import { toMajorNumber } from '@/lib/money'
 import { localeForLanguage } from '@/lib/i18n'
 import { useCashflow, useCategoryTrend } from '@/features/reports/hooks'
+import { useTheme, chartColors } from '@/lib/theme'
 
 const PRESETS: PeriodPresetId[] = ['thisMonth', 'lastMonth', 'thisYear', 'custom']
 const INTERVALS: TrendInterval[] = ['month', 'week']
@@ -27,7 +27,7 @@ const VIEWS = ['total', 'category'] as const
 const COLORS = { income: '#22c55e', expense: '#ef4444', net: '#4f46e5' }
 
 const pill = (active: boolean) =>
-  `rounded-md px-3 py-1.5 text-sm font-medium ${active ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`
+  `rounded-md px-3 py-1.5 text-sm font-medium ${active ? 'bg-surface text-fg shadow-sm' : 'text-fg-soft'}`
 
 const seriesKey = (s: CategorySeries) =>
   s.categoryId != null ? String(s.categoryId) : 'uncategorized'
@@ -36,6 +36,7 @@ export function TrendsPage() {
   const { t, i18n } = useTranslation()
   const locale = localeForLanguage(i18n.language)
   const formatMoney = useFormatMoney()
+  const cc = chartColors(useTheme().theme)
 
   const [preset, setPreset] = useState<PeriodPresetId>('thisYear')
   const [range, setRange] = useState<DateRange>(() => presetRange('thisYear'))
@@ -80,14 +81,14 @@ export function TrendsPage() {
         subtitle={`${formatDate(range.from, locale)} – ${formatDate(range.to, locale)}`}
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex rounded-lg bg-slate-100 p-0.5">
+            <div className="flex rounded-lg bg-surface-2 p-0.5">
               {VIEWS.map((v) => (
                 <button key={v} onClick={() => setView(v)} className={pill(view === v)}>
                   {t(`trends.${v}`)}
                 </button>
               ))}
             </div>
-            <div className="flex rounded-lg bg-slate-100 p-0.5">
+            <div className="flex rounded-lg bg-surface-2 p-0.5">
               {INTERVALS.map((iv) => (
                 <button key={iv} onClick={() => setGrouping(iv)} className={pill(grouping === iv)}>
                   {t(`trends.${iv}`)}
@@ -118,7 +119,7 @@ export function TrendsPage() {
               onChange={(e) => setRange((r) => ({ ...r, from: e.target.value }))}
               className="w-auto"
             />
-            <span className="text-slate-400">–</span>
+            <span className="text-fg-subtle">–</span>
             <Input
               type="date"
               value={range.to}
@@ -146,12 +147,9 @@ export function TrendsPage() {
             <ResponsiveContainer width="100%" height="100%">
               {view === 'total' ? (
                 <ComposedChart data={totalData} margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="period" tick={{ fontSize: 12 }} />
-                  <YAxis tick={{ fontSize: 12 }} width={80} tickFormatter={(v) => money(Number(v))} />
-                  <Tooltip
-                    formatter={(value, name) => [money(Number(value)), t(`trends.${String(name)}`)]}
-                  />
+                  <CartesianGrid strokeDasharray="3 3" stroke={cc.grid} />
+                  <XAxis dataKey="period" tick={{ fontSize: 12, fill: cc.axis }} />
+                  <YAxis tick={{ fontSize: 12, fill: cc.axis }} width={80} tickFormatter={(v) => money(Number(v))} />
                   <Legend formatter={(name) => t(`trends.${String(name)}`)} />
                   <Bar dataKey="income" fill={COLORS.income} radius={[3, 3, 0, 0]} />
                   <Bar dataKey="expense" fill={COLORS.expense} radius={[3, 3, 0, 0]} />
@@ -159,10 +157,9 @@ export function TrendsPage() {
                 </ComposedChart>
               ) : (
                 <BarChart data={catData} margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="period" tick={{ fontSize: 12 }} />
-                  <YAxis tick={{ fontSize: 12 }} width={80} tickFormatter={(v) => money(Number(v))} />
-                  <Tooltip formatter={(value) => money(Number(value))} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={cc.grid} />
+                  <XAxis dataKey="period" tick={{ fontSize: 12, fill: cc.axis }} />
+                  <YAxis tick={{ fontSize: 12, fill: cc.axis }} width={80} tickFormatter={(v) => money(Number(v))} />
                   <Legend />
                   {catSeries.map((s) => (
                     <Bar

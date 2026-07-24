@@ -118,8 +118,8 @@ export function AccountForm({ open, onClose, account }: { open: boolean; onClose
             <Input id="acc-ccy" maxLength={3} className="uppercase" disabled={editing} {...register('currency')} />
           </Field>
         </div>
-        <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-          <input type="checkbox" className="size-4 rounded border-slate-300 text-brand-600" {...register('trackBalance')} />
+        <label className="flex items-center gap-2 text-sm font-medium text-fg-muted">
+          <input type="checkbox" className="size-4 rounded border-border-strong text-accent" {...register('trackBalance')} />
           {t('accounts.trackBalance')}
         </label>
         {trackBalance && (

@@ -61,8 +61,8 @@ export function FxRatesCard() {
 
   return (
     <Card className="max-w-md p-5">
-      <h2 className="text-base font-semibold text-slate-900">{t('fx.title')}</h2>
-      <p className="mt-1 text-xs text-slate-500">{t('fx.hint')}</p>
+      <h2 className="text-base font-semibold text-fg">{t('fx.title')}</h2>
+      <p className="mt-1 text-xs text-fg-soft">{t('fx.hint')}</p>
 
       {isLoading ? (
         <div className="mt-4 space-y-2">
@@ -70,20 +70,20 @@ export function FxRatesCard() {
           <Skeleton className="h-9 w-full" />
         </div>
       ) : isError ? (
-        <div className="mt-4 flex items-center justify-between gap-3 rounded-lg bg-slate-50 p-3">
-          <p className="text-sm text-slate-600">{t('errors.loadFailed')}</p>
+        <div className="mt-4 flex items-center justify-between gap-3 rounded-lg bg-surface-2 p-3">
+          <p className="text-sm text-fg-muted">{t('errors.loadFailed')}</p>
           <Button size="sm" variant="secondary" onClick={() => void refetch()}>
             {t('common.retry')}
           </Button>
         </div>
       ) : data && data.rates.length === 0 ? (
-        <p className="mt-4 rounded-lg bg-slate-50 p-3 text-sm text-slate-500">{t('fx.empty')}</p>
+        <p className="mt-4 rounded-lg bg-surface-2 p-3 text-sm text-fg-soft">{t('fx.empty')}</p>
       ) : (
-        <ul className="mt-4 divide-y divide-slate-100">
+        <ul className="mt-4 divide-y divide-border-subtle">
           {data?.rates.map((fxRate) => (
             <li key={fxRate.currency} className="flex items-start justify-between gap-3 py-2.5">
               <div className="min-w-0">
-                <p className="text-sm text-slate-900">
+                <p className="text-sm text-fg">
                   {t('fx.example', {
                     currency: fxRate.currency,
                     rate: fxRate.rateToBase,
@@ -93,7 +93,7 @@ export function FxRatesCard() {
                 {fxRate.stale && (
                   <>
                     <Badge tone="red">{t('fx.stale', { base: fxRate.baseCurrency })}</Badge>
-                    <p className="mt-1 text-xs text-slate-500">
+                    <p className="mt-1 text-xs text-fg-soft">
                       {t('fx.staleHint', { base: fxRate.baseCurrency })}
                     </p>
                   </>
