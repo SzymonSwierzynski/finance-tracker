@@ -26,6 +26,8 @@ const resources = {
         title: 'Dashboard', income: 'Income', expense: 'Expense', net: 'Net', period: 'Period',
         thisMonth: 'This month', lastMonth: 'Last month', thisYear: 'This year', custom: 'Custom',
         recent: 'Recent transactions', incomeVsExpense: 'Income vs expense', empty: 'No activity in this period yet.',
+        compare: 'Compare', compare_off: 'Off', compare_month: 'MoM', compare_year: 'YoY',
+        vsLastMonth: 'vs last month', vsLastYear: 'vs last year',
       },
       accounts: {
         title: 'Accounts', new: 'New account', name: 'Name', type: 'Type', currency: 'Currency',
@@ -134,6 +136,8 @@ const resources = {
         title: 'Pulpit', income: 'Przychody', expense: 'Wydatki', net: 'Saldo', period: 'Okres',
         thisMonth: 'Ten miesiąc', lastMonth: 'Poprzedni miesiąc', thisYear: 'Ten rok', custom: 'Własny',
         recent: 'Ostatnie transakcje', incomeVsExpense: 'Przychody i wydatki', empty: 'Brak aktywności w tym okresie.',
+        compare: 'Porównaj', compare_off: 'Wył.', compare_month: 'm/m', compare_year: 'r/r',
+        vsLastMonth: 'wzgl. poprz. miesiąca', vsLastYear: 'wzgl. poprz. roku',
       },
       accounts: {
         title: 'Konta', new: 'Nowe konto', name: 'Nazwa', type: 'Typ', currency: 'Waluta',

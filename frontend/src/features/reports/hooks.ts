@@ -5,6 +5,8 @@ import type {
   CashflowResponse,
   CategoryKind,
   CategoryTrendResponse,
+  Comparison,
+  ComparisonMode,
   Summary,
   TrendResponse,
 } from '@/api'
@@ -25,6 +27,15 @@ export function useSummary(from: string, to: string) {
   return useQuery({
     queryKey: reportKeys.summary(from, to),
     queryFn: () => api.get<Summary>('/api/v1/reports/summary', { params: { from, to } }),
+  })
+}
+
+export function useComparison(from: string, to: string, mode: ComparisonMode, enabled = true) {
+  return useQuery({
+    enabled,
+    queryKey: ['reports', 'comparison', { from, to, mode }] as const,
+    queryFn: () =>
+      api.get<Comparison>('/api/v1/reports/comparison', { params: { from, to, mode } }),
   })
 }
 

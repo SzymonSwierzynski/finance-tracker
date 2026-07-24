@@ -88,6 +88,25 @@ export interface Summary {
   netMinor: number
 }
 
+export type ComparisonMode = 'month' | 'year'
+
+export interface ComparisonPeriod {
+  from: string
+  to: string
+  incomeMinor: number
+  expenseMinor: number
+  netMinor: number
+}
+
+/** Period-over-period comparison; `delta` is current − previous (base minor units). */
+export interface Comparison {
+  currency: string
+  mode: ComparisonMode
+  current: ComparisonPeriod
+  previous: ComparisonPeriod
+  delta: { incomeMinor: number; expenseMinor: number; netMinor: number }
+}
+
 export interface Settings {
   reportingCurrency: string
 }

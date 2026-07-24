@@ -1,25 +1,63 @@
-import { useMemo, useState } from 'react'
+import { type ReactNode, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import type { ComparisonMode } from '@/api'
 import { Button, Card, CenteredState, Input, PageHeader, Skeleton } from '@/components/primitives'
 import { Money, useFormatMoney } from '@/components/Money'
 import { formatDate, presetRange, todayIso } from '@/lib/date'
 import type { DateRange, PeriodPresetId } from '@/lib/date'
 import { toMajorNumber } from '@/lib/money'
 import { localeForLanguage } from '@/lib/i18n'
-import { useSummary } from '@/features/reports/hooks'
+import { useComparison, useSummary } from '@/features/reports/hooks'
 import { useTransactions } from '@/features/transactions/hooks'
 
 const PRESETS: PeriodPresetId[] = ['thisMonth', 'lastMonth', 'thisYear', 'custom']
 
-function StatCard({ label, minor, currency, tone }: { label: string; minor: number; currency: string; tone: 'income' | 'expense' | 'net' }) {
+function StatCard({
+  label,
+  minor,
+  currency,
+  tone,
+  previousMinor,
+  goodWhenUp,
+  compareLabel,
+}: {
+  label: string
+  minor: number
+  currency: string
+  tone: 'income' | 'expense' | 'net'
+  // When set, show the change vs this previous-period value.
+  previousMinor?: number
+  goodWhenUp?: boolean
+  compareLabel?: string
+}) {
+  const formatMoney = useFormatMoney()
   const ring = tone === 'income' ? 'ring-positive/20' : tone === 'expense' ? 'ring-negative/20' : 'ring-brand-200'
+
+  let delta: ReactNode = null
+  if (previousMinor !== undefined) {
+    const d = minor - previousMinor
+    // % only when there's a base to compare against; otherwise show the absolute change.
+    const pct = previousMinor !== 0 ? (d / previousMinor) * 100 : null
+    const good = d === 0 ? null : d > 0 === Boolean(goodWhenUp)
+    const toneClass = good === null ? 'text-slate-400' : good ? 'text-positive' : 'text-negative'
+    const arrow = d === 0 ? '' : d > 0 ? '▲ ' : '▼ '
+    const change = d === 0 ? '—' : pct !== null ? `${Math.abs(pct).toFixed(1)}%` : formatMoney(Math.abs(d), currency)
+    delta = (
+      <p className={`mt-1 text-xs font-medium ${toneClass}`}>
+        {arrow}
+        {change} <span className="font-normal text-slate-400">{compareLabel}</span>
+      </p>
+    )
+  }
+
   return (
     <Card className={`p-5 ring-1 ${ring}`}>
       <p className="text-sm text-slate-500">{label}</p>
       <p className="mt-2 text-2xl font-semibold">
         <Money minor={minor} currency={currency} colored={tone !== 'net'} />
       </p>
+      {delta}
     </Card>
   )
 }
@@ -31,6 +69,7 @@ export function DashboardPage() {
 
   const [preset, setPreset] = useState<PeriodPresetId>('thisMonth')
   const [range, setRange] = useState<DateRange>(() => presetRange('thisMonth'))
+  const [compareMode, setCompareMode] = useState<'off' | ComparisonMode>('off')
 
   const onPreset = (p: PeriodPresetId) => {
     setPreset(p)
@@ -39,6 +78,14 @@ export function DashboardPage() {
 
   const { data: summary, isLoading, isError, refetch } = useSummary(range.from, range.to)
   const { data: recent } = useTransactions({ from: range.from, to: range.to, page: 0, size: 5 })
+  const comparison = useComparison(
+    range.from,
+    range.to,
+    compareMode === 'off' ? 'month' : compareMode,
+    compareMode !== 'off',
+  )
+  const previous = compareMode === 'off' ? undefined : comparison.data?.previous
+  const compareLabel = t(compareMode === 'year' ? 'dashboard.vsLastYear' : 'dashboard.vsLastMonth')
 
   const currency = summary?.currency ?? 'PLN'
   const chartData = useMemo(
@@ -68,6 +115,14 @@ export function DashboardPage() {
             <Input type="date" value={range.to} onChange={(e) => setRange((r) => ({ ...r, to: e.target.value }))} className="w-auto" />
           </div>
         )}
+        <div className="ml-auto flex items-center gap-1.5">
+          <span className="text-xs text-slate-400">{t('dashboard.compare')}</span>
+          {(['off', 'month', 'year'] as const).map((m) => (
+            <Button key={m} variant={compareMode === m ? 'primary' : 'secondary'} size="sm" onClick={() => setCompareMode(m)}>
+              {t(`dashboard.compare_${m}`)}
+            </Button>
+          ))}
+        </div>
       </div>
 
       {isError ? (
@@ -84,9 +139,9 @@ export function DashboardPage() {
               ))
             ) : (
               <>
-                <StatCard label={t('dashboard.income')} minor={summary.incomeMinor} currency={currency} tone="income" />
-                <StatCard label={t('dashboard.expense')} minor={summary.expenseMinor} currency={currency} tone="expense" />
-                <StatCard label={t('dashboard.net')} minor={summary.netMinor} currency={currency} tone="net" />
+                <StatCard label={t('dashboard.income')} minor={summary.incomeMinor} currency={currency} tone="income" previousMinor={previous?.incomeMinor} goodWhenUp compareLabel={compareLabel} />
+                <StatCard label={t('dashboard.expense')} minor={summary.expenseMinor} currency={currency} tone="expense" previousMinor={previous?.expenseMinor} goodWhenUp={false} compareLabel={compareLabel} />
+                <StatCard label={t('dashboard.net')} minor={summary.netMinor} currency={currency} tone="net" previousMinor={previous?.netMinor} goodWhenUp compareLabel={compareLabel} />
               </>
             )}
           </div>
