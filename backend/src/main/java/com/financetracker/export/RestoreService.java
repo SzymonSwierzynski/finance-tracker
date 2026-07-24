@@ -6,6 +6,7 @@ import com.financetracker.account.AccountType;
 import com.financetracker.category.Category;
 import com.financetracker.category.CategoryKind;
 import com.financetracker.category.CategoryRepository;
+import com.financetracker.common.error.UnprocessableEntityException;
 import com.financetracker.common.hash.DedupeHash;
 import com.financetracker.export.dto.BackupResponse;
 import com.financetracker.export.dto.BackupResponse.AccountBackup;
@@ -18,6 +19,7 @@ import com.financetracker.transaction.Transaction;
 import com.financetracker.transaction.TransactionRepository;
 import com.financetracker.transaction.TransactionType;
 import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -66,21 +68,34 @@ public class RestoreService {
 
   @Transactional
   public RestoreSummary restore(long userId, BackupResponse backup) {
-    restoreReportingCurrency(userId, backup.reportingCurrency());
+    try {
+      // Only adopt the backup's reporting currency on a *fresh* restore (user has no accounts yet).
+      // On a merge, silently changing it would mark the user's existing FX rates stale (§7).
+      boolean fresh = accountRepository.findByUserIdOrderByNameAsc(userId).isEmpty();
+      if (fresh) {
+        restoreReportingCurrency(userId, backup.reportingCurrency());
+      }
 
-    Map<String, Long> accountIdByName = new HashMap<>();
-    int accountsCreated = restoreAccounts(userId, backup.accounts(), accountIdByName);
+      Map<String, Long> accountIdByName = new HashMap<>();
+      int accountsCreated = restoreAccounts(userId, backup.accounts(), accountIdByName);
 
-    Map<String, Long> categoryIdByName = new HashMap<>();
-    int categoriesCreated = restoreCategories(userId, backup.categories(), categoryIdByName);
+      Map<String, Long> categoryIdByName = new HashMap<>();
+      Map<String, Long> categoryIdByPath = new HashMap<>();
+      int categoriesCreated =
+          restoreCategories(userId, backup.categories(), categoryIdByName, categoryIdByPath);
 
-    return restoreTransactions(
-        userId,
-        backup.transactions(),
-        accountIdByName,
-        categoryIdByName,
-        accountsCreated,
-        categoriesCreated);
+      return restoreTransactions(
+          userId,
+          backup.transactions(),
+          accountIdByName,
+          categoryIdByName,
+          categoryIdByPath,
+          accountsCreated,
+          categoriesCreated);
+    } catch (IllegalArgumentException | DateTimeParseException e) {
+      // A malformed enum (type/kind) or date in the backup is a bad request, not a 500.
+      throw new UnprocessableEntityException("Backup contains an invalid value: " + e.getMessage());
+    }
   }
 
   private void restoreReportingCurrency(long userId, String currency) {
@@ -122,14 +137,25 @@ public class RestoreService {
    * {@code idByName} (name → id) for transaction resolution. Returns how many were created.
    */
   private int restoreCategories(
-      long userId, List<CategoryBackup> categories, Map<String, Long> idByName) {
-    // Existing categories keyed by (parentId, lower-name) for find-or-create, plus a lower-name →
-    // id index over top-level ones so a child's parent name resolves to its id.
+      long userId,
+      List<CategoryBackup> categories,
+      Map<String, Long> idByName,
+      Map<String, Long> idByPath) {
+    // Existing categories keyed by (parentId, lower-name) for find-or-create, a bare-name index
+    // (back-compat), a (parentName, name) path index (the unambiguous transaction key), and a
+    // lower-name → id index over top-level ones so a child's parent name resolves to its id.
+    List<Category> existing = categoryRepository.findByUserIdOrderByNameAsc(userId);
+    Map<Long, Category> existingById = new HashMap<>();
+    for (Category c : existing) {
+      existingById.put(c.getId(), c);
+    }
     Map<String, Category> existingByKey = new HashMap<>();
     Map<String, Long> topLevelIdByName = new HashMap<>();
-    for (Category c : categoryRepository.findByUserIdOrderByNameAsc(userId)) {
+    for (Category c : existing) {
       idByName.put(c.getName(), c.getId());
       existingByKey.put(childKey(c.getParentId(), c.getName()), c);
+      Category parent = c.getParentId() == null ? null : existingById.get(c.getParentId());
+      idByPath.put(pathKey(parent == null ? null : parent.getName(), c.getName()), c.getId());
       if (c.getParentId() == null) {
         topLevelIdByName.put(c.getName().toLowerCase(Locale.ROOT), c.getId());
       }
@@ -141,6 +167,7 @@ public class RestoreService {
         boolean isNew = !existingByKey.containsKey(childKey(null, cb.name()));
         Long id = findOrCreateCategory(userId, cb, null, existingByKey);
         idByName.put(cb.name(), id);
+        idByPath.put(pathKey(null, cb.name()), id);
         topLevelIdByName.put(cb.name().toLowerCase(Locale.ROOT), id);
         if (isNew) {
           created++;
@@ -154,7 +181,9 @@ public class RestoreService {
           continue; // parent absent from the backup (corrupt input) — skip rather than misplace
         }
         boolean isNew = !existingByKey.containsKey(childKey(parentId, cb.name()));
-        idByName.put(cb.name(), findOrCreateCategory(userId, cb, parentId, existingByKey));
+        Long id = findOrCreateCategory(userId, cb, parentId, existingByKey);
+        idByName.put(cb.name(), id);
+        idByPath.put(pathKey(cb.parent(), cb.name()), id);
         if (isNew) {
           created++;
         }
@@ -185,6 +214,7 @@ public class RestoreService {
       List<ExportedTransaction> transactions,
       Map<String, Long> accountIdByName,
       Map<String, Long> categoryIdByName,
+      Map<String, Long> categoryIdByPath,
       int accountsCreated,
       int categoriesCreated) {
     Map<Long, Set<String>> hashesByAccount = new HashMap<>();
@@ -222,7 +252,11 @@ public class RestoreService {
         skipped++; // already present, or a duplicate within this backup
         continue;
       }
-      toInsert.add(newTransaction(userId, t, accountId, counterAccountId, categoryIdByName, hash));
+      Long categoryId =
+          TransactionType.TRANSFER.value().equals(t.type())
+              ? null
+              : resolveCategory(t, categoryIdByName, categoryIdByPath);
+      toInsert.add(newTransaction(userId, t, accountId, counterAccountId, categoryId, hash));
       imported++;
     }
     transactionRepository.saveAll(toInsert);
@@ -235,21 +269,16 @@ public class RestoreService {
       ExportedTransaction t,
       long accountId,
       Long counterAccountId,
-      Map<String, Long> categoryIdByName,
+      Long categoryId,
       String dedupeHash) {
     Transaction tx = new Transaction();
     tx.setUserId(userId);
     tx.setDate(LocalDate.parse(t.date()));
     tx.setAmountMinor(t.amountMinor());
-    TransactionType type = TransactionType.fromValue(t.type());
-    tx.setType(type);
+    tx.setType(TransactionType.fromValue(t.type()));
     tx.setAccountId(accountId);
     tx.setCounterAccountId(counterAccountId);
-    // Transfers are never categorized (CLAUDE.md §6); otherwise resolve the category by name.
-    tx.setCategoryId(
-        type == TransactionType.TRANSFER || !StringUtils.hasText(t.category())
-            ? null
-            : categoryIdByName.get(t.category()));
+    tx.setCategoryId(categoryId); // resolved by (parent, name) in the caller; null for transfers
     tx.setCurrency(t.currency());
     tx.setRateToBase(t.rateToBase()); // preserve the locked rate (CLAUDE.md §7)
     tx.setDescription(t.description() == null ? "" : t.description());
@@ -260,6 +289,23 @@ public class RestoreService {
 
   private static String childKey(Long parentId, String name) {
     return parentId + " " + name.toLowerCase(Locale.ROOT);
+  }
+
+  /** (parentName, name) key — a category's unambiguous identity within a user, for restore. */
+  private static String pathKey(String parentName, String name) {
+    String p =
+        (parentName == null || parentName.isBlank()) ? "" : parentName.toLowerCase(Locale.ROOT);
+    return p + " " + name.toLowerCase(Locale.ROOT);
+  }
+
+  /** Resolve a transaction's category by (parent, name); fall back to bare name for old backups. */
+  private static Long resolveCategory(
+      ExportedTransaction t, Map<String, Long> byName, Map<String, Long> byPath) {
+    if (!StringUtils.hasText(t.category())) {
+      return null;
+    }
+    Long viaPath = byPath.get(pathKey(t.categoryParent(), t.category()));
+    return viaPath != null ? viaPath : byName.get(t.category());
   }
 
   private static <T> List<T> nullSafe(List<T> list) {

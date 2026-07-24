@@ -1,5 +1,6 @@
 package com.financetracker.export.dto;
 
+import jakarta.validation.constraints.Size;
 import java.util.List;
 
 /**
@@ -11,9 +12,11 @@ import java.util.List;
  */
 public record BackupResponse(
     String reportingCurrency,
-    List<AccountBackup> accounts,
-    List<CategoryBackup> categories,
-    List<ExportedTransaction> transactions) {
+    // Bound each collection so a restore can't be used to push an unbounded payload (self-DoS);
+    // validated at the controller via @Valid → 422. Generous ceilings, well above any real user.
+    @Size(max = 1_000, message = "too many accounts") List<AccountBackup> accounts,
+    @Size(max = 5_000, message = "too many categories") List<CategoryBackup> categories,
+    @Size(max = 50_000, message = "too many transactions") List<ExportedTransaction> transactions) {
 
   public record AccountBackup(
       String name,

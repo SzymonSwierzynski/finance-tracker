@@ -6,6 +6,7 @@ import com.financetracker.export.dto.BackupResponse;
 import com.financetracker.export.dto.ExportedTransaction;
 import com.financetracker.export.dto.RestoreSummary;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -45,7 +46,8 @@ public class ExportController {
    * matched by name, transactions deduped by hash — re-posting the same backup imports nothing new.
    */
   @PostMapping("/restore")
-  public RestoreSummary restore(@CurrentUser AuthUser user, @RequestBody BackupResponse backup) {
+  public RestoreSummary restore(
+      @CurrentUser AuthUser user, @Valid @RequestBody BackupResponse backup) {
     return restoreService.restore(user.id(), backup);
   }
 

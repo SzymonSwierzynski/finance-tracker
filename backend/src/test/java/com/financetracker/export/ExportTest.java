@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.financetracker.support.AbstractIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
@@ -45,7 +46,7 @@ class ExportTest extends AbstractIntegrationTest {
     String body = csv.getResponse().getContentAsString();
     assertThat(body)
         .contains(
-            "date,type,amountMinor,currency,rateToBase,account,counterAccount,category,description,note")
+            "date,type,amountMinor,currency,rateToBase,account,counterAccount,category,categoryParent,description,note")
         .contains("2026-05-10")
         .contains("Biedronka")
         .contains("1999");
@@ -180,6 +181,122 @@ class ExportTest extends AbstractIntegrationTest {
         .andExpect(jsonPath("$.transactions[0].amountMinor").value(50000))
         .andExpect(jsonPath("$.transactions[0].account").value("Checking"))
         .andExpect(jsonPath("$.transactions[0].counterAccount").value("Savings"));
+  }
+
+  @Test
+  void restorePreservesCategoryUnderDuplicateLeafNames() throws Exception {
+    RegisteredUser source = register("restore-dupcat-src@example.com", "password123");
+    clearCategories(source);
+    long account = createAccount(source);
+    long foodOther = createSubcategory(source, "Other", createCategory(source, "Food"));
+    long transportOther = createSubcategory(source, "Other", createCategory(source, "Transport"));
+    createExpense(source, account, "2026-05-01", 1000, foodOther, "groceries");
+    createExpense(source, account, "2026-05-02", 2000, transportOther, "bus");
+    String backup = backupOf(source);
+
+    RegisteredUser target = register("restore-dupcat-dst@example.com", "password123");
+    clearCategories(target);
+    mockMvc
+        .perform(
+            post("/api/v1/export/restore")
+                .header(HttpHeaders.AUTHORIZATION, bearer(target))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(backup))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.transactionsImported").value(2));
+
+    // Re-export: each "Other" transaction keeps its correct parent (not collapsed to one).
+    JsonNode txns = objectMapper.readTree(backupOf(target)).get("transactions");
+    assertThat(txns).hasSize(2);
+    for (JsonNode tx : txns) {
+      assertThat(tx.get("category").asText()).isEqualTo("Other");
+      assertThat(tx.get("categoryParent").asText())
+          .isEqualTo(tx.get("amountMinor").asLong() == 1000 ? "Food" : "Transport");
+    }
+  }
+
+  @Test
+  void usersCannotExportEachOthersData() throws Exception {
+    RegisteredUser alice = register("export-iso-a@example.com", "password123");
+    RegisteredUser bob = register("export-iso-b@example.com", "password123");
+    clearCategories(bob);
+    long bobAccount = createAccount(bob);
+    createExpense(bob, bobAccount, "2026-05-10", 5000, createCategory(bob, "Groceries"), "bob's");
+
+    // Alice has no transactions/accounts; her export must not leak Bob's.
+    mockMvc
+        .perform(
+            get("/api/v1/export/transactions").header(HttpHeaders.AUTHORIZATION, bearer(alice)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.length()").value(0));
+    mockMvc
+        .perform(get("/api/v1/export/backup").header(HttpHeaders.AUTHORIZATION, bearer(alice)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.transactions.length()").value(0))
+        .andExpect(jsonPath("$.accounts.length()").value(0));
+  }
+
+  @Test
+  void csvExportNeutralizesFormulaInjection() throws Exception {
+    RegisteredUser user = register("csv-inj@example.com", "password123");
+    clearCategories(user);
+    long account = createAccount(user);
+    createExpense(user, account, "2026-05-10", 1000, createCategory(user, "Groceries"), "=1+2");
+
+    String csv =
+        mockMvc
+            .perform(
+                get("/api/v1/export/transactions/csv")
+                    .header(HttpHeaders.AUTHORIZATION, bearer(user)))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    // The leading '=' is prefixed with a single quote so a spreadsheet treats the cell as text.
+    assertThat(csv).contains("'=1+2");
+  }
+
+  @Test
+  void restoreRejectsAMalformedBackupWith422() throws Exception {
+    RegisteredUser user = register("restore-bad@example.com", "password123");
+    // "spaceship" is not a valid AccountType — a bad value should be 422, not a 500.
+    String badBackup =
+        "{\"reportingCurrency\":\"PLN\",\"accounts\":"
+            + "[{\"name\":\"X\",\"type\":\"spaceship\",\"currency\":\"PLN\"}],"
+            + "\"categories\":[],\"transactions\":[]}";
+    mockMvc
+        .perform(
+            post("/api/v1/export/restore")
+                .header(HttpHeaders.AUTHORIZATION, bearer(user))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(badBackup))
+        .andExpect(status().isUnprocessableEntity());
+  }
+
+  private String backupOf(RegisteredUser user) throws Exception {
+    return mockMvc
+        .perform(get("/api/v1/export/backup").header(HttpHeaders.AUTHORIZATION, bearer(user)))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+  }
+
+  private long createSubcategory(RegisteredUser user, String name, long parentId) throws Exception {
+    return id(
+        mockMvc
+            .perform(
+                post("/api/v1/categories")
+                    .header(HttpHeaders.AUTHORIZATION, bearer(user))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(
+                        "{\"name\":\""
+                            + name
+                            + "\",\"kind\":\"expense\",\"parentId\":"
+                            + parentId
+                            + "}"))
+            .andExpect(status().isCreated())
+            .andReturn());
   }
 
   private long createAccount(RegisteredUser user) throws Exception {
