@@ -10,7 +10,8 @@ services:
       POSTGRES_USER: finance
       POSTGRES_PASSWORD: finance
     ports:
-      - "5432:5432"
+      # Localhost-only — don't expose Postgres on the network.
+      - "127.0.0.1:5432:5432"
     volumes:
       - db-data:/var/lib/postgresql/data
     healthcheck:
@@ -31,7 +32,10 @@ services:
       SPRING_DATASOURCE_PASSWORD: finance
       # No JWT keypair configured -> an ephemeral key is generated (dev/demo only).
     ports:
-      - "8080:8080"
+      # Localhost-only: reachable for dev (curl / Swagger) but not exposed on the network, so the
+      # unauthenticated docs/metrics + the rate limiter's client IP can't be reached bypassing nginx.
+      # The frontend proxies to the backend over the internal compose network (backend:8080).
+      - "127.0.0.1:8080:8080"
 
   frontend:
     build: ./frontend

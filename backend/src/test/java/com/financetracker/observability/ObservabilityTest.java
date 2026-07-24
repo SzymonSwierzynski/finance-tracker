@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.financetracker.support.AbstractIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.autoconfigure.actuate.observability.AutoConfigureObservability;
+import org.springframework.http.HttpHeaders;
 
 /**
  * Observability wiring: a correlation id on every response (generated, echoed, and sanitized
@@ -46,12 +47,18 @@ class ObservabilityTest extends AbstractIntegrationTest {
   }
 
   @Test
+  void prometheusRequiresAuthentication() throws Exception {
+    // Metrics are operational intel (registration/txn volume) — not public.
+    mockMvc.perform(get("/actuator/prometheus")).andExpect(status().isUnauthorized());
+  }
+
+  @Test
   void prometheusExposesJvmAndBusinessMetrics() throws Exception {
-    register("obs-metrics@example.com", "password123"); // bumps the registrations counter
+    RegisteredUser user = register("obs-metrics@example.com", "password123"); // bumps registrations
 
     String body =
         mockMvc
-            .perform(get("/actuator/prometheus"))
+            .perform(get("/actuator/prometheus").header(HttpHeaders.AUTHORIZATION, bearer(user)))
             .andExpect(status().isOk())
             .andReturn()
             .getResponse()

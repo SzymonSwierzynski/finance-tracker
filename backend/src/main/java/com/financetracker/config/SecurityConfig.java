@@ -57,11 +57,12 @@ public class SecurityConfig {
                         "/api/v1/auth/refresh",
                         "/api/v1/auth/logout")
                     .permitAll()
-                    // Probes + the Prometheus scrape endpoint are public (aggregate system
-                    // metrics, no user data); restrict at the network layer in prod. Other
-                    // actuator endpoints (e.g. /actuator/metrics) still require auth.
-                    .requestMatchers(
-                        "/actuator/health/**", "/actuator/info", "/actuator/prometheus")
+                    // Only the liveness/readiness probes and /info are public. /actuator/prometheus
+                    // and other actuator endpoints require auth — its counters (registrations,
+                    // txns)
+                    // are operational intel; scrape via an internal management port or an
+                    // authenticated scraper, never the public origin.
+                    .requestMatchers("/actuator/health/**", "/actuator/info")
                     .permitAll()
                     .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
                     .permitAll()
