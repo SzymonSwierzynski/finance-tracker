@@ -120,9 +120,10 @@ tasks.jacocoTestCoverageVerification {
         rule {
             limit {
                 counter = "INSTRUCTION"
-                // Pragmatic floor for Phase 1 (money/auth/settings well covered);
-                // ramp toward the contract's ~80% in the hardening phase.
-                minimum = "0.50".toBigDecimal()
+                // Actual instruction coverage is ~93% (services + utils; the boilerplate excluded
+                // above). Floor set to 0.85 — comfortably past the contract's ~80% target, with
+                // headroom so a single new feature can't red the gate before its tests land.
+                minimum = "0.85".toBigDecimal()
             }
         }
     }
