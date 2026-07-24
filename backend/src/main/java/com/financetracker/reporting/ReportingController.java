@@ -6,6 +6,7 @@ import com.financetracker.common.security.CurrentUser;
 import com.financetracker.reporting.dto.BreakdownResponse;
 import com.financetracker.reporting.dto.CashflowResponse;
 import com.financetracker.reporting.dto.CategoryTrendResponse;
+import com.financetracker.reporting.dto.ComparisonResponse;
 import com.financetracker.reporting.dto.SummaryResponse;
 import com.financetracker.reporting.dto.TrendResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -33,6 +34,15 @@ public class ReportingController {
       @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
       @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
     return reportingService.summary(user.id(), from, to);
+  }
+
+  @GetMapping("/comparison")
+  public ComparisonResponse comparison(
+      @CurrentUser AuthUser user,
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+      @RequestParam(defaultValue = "month") String mode) {
+    return reportingService.comparison(user.id(), from, to, mode);
   }
 
   @GetMapping("/breakdown")

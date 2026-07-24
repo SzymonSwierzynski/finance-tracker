@@ -12,6 +12,9 @@ import com.financetracker.reporting.dto.CashflowResponse.CashflowBucket;
 import com.financetracker.reporting.dto.CategoryTrendResponse;
 import com.financetracker.reporting.dto.CategoryTrendResponse.CategorySeries;
 import com.financetracker.reporting.dto.CategoryTrendResponse.CategoryTrendBucket;
+import com.financetracker.reporting.dto.ComparisonResponse;
+import com.financetracker.reporting.dto.ComparisonResponse.Delta;
+import com.financetracker.reporting.dto.ComparisonResponse.PeriodSummary;
 import com.financetracker.reporting.dto.SummaryResponse;
 import com.financetracker.reporting.dto.TrendResponse;
 import com.financetracker.reporting.dto.TrendResponse.TrendBucket;
@@ -24,6 +27,7 @@ import com.financetracker.transaction.TransactionRepository.SummaryRow;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.Period;
 import java.time.temporal.IsoFields;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -64,11 +68,47 @@ public class ReportingService {
   @Transactional(readOnly = true)
   public SummaryResponse summary(long userId, LocalDate from, LocalDate to) {
     requireRange(from, to);
-    List<SummaryRow> rows = transactionRepository.summarize(userId, from, to);
+    PeriodSummary s = periodSummary(userId, from, to);
+    return new SummaryResponse(
+        from,
+        to,
+        settingsService.reportingCurrency(userId),
+        s.incomeMinor(),
+        s.expenseMinor(),
+        s.netMinor());
+  }
 
+  /**
+   * Period-over-period comparison: the requested range vs the same range shifted back one {@code
+   * mode} unit (month or year), with the per-total delta. Reuses the summary aggregation for both
+   * periods; percentage change is derived at the display edge.
+   */
+  @Transactional(readOnly = true)
+  public ComparisonResponse comparison(long userId, LocalDate from, LocalDate to, String mode) {
+    requireRange(from, to);
+    String normalized = (mode == null || mode.isBlank()) ? "month" : mode.toLowerCase(Locale.ROOT);
+    Period shift =
+        switch (normalized) {
+          case "month" -> Period.ofMonths(1);
+          case "year" -> Period.ofYears(1);
+          default -> throw new UnprocessableEntityException("mode must be 'month' or 'year'.");
+        };
+    PeriodSummary current = periodSummary(userId, from, to);
+    PeriodSummary previous = periodSummary(userId, from.minus(shift), to.minus(shift));
+    Delta delta =
+        new Delta(
+            current.incomeMinor() - previous.incomeMinor(),
+            current.expenseMinor() - previous.expenseMinor(),
+            current.netMinor() - previous.netMinor());
+    return new ComparisonResponse(
+        settingsService.reportingCurrency(userId), normalized, current, previous, delta);
+  }
+
+  /** Income/expense/net (base minor units) for one range — the shared summary aggregation. */
+  private PeriodSummary periodSummary(long userId, LocalDate from, LocalDate to) {
     long incomeMinor = 0L;
     long expenseMinor = 0L;
-    for (SummaryRow row : rows) {
+    for (SummaryRow row : transactionRepository.summarize(userId, from, to)) {
       long base = baseMinorOf(row.getBaseMinor());
       if ("income".equals(row.getType())) {
         incomeMinor = base;
@@ -76,10 +116,7 @@ public class ReportingService {
         expenseMinor = base;
       }
     }
-
-    String currency = settingsService.reportingCurrency(userId);
-    return new SummaryResponse(
-        from, to, currency, incomeMinor, expenseMinor, incomeMinor - expenseMinor);
+    return new PeriodSummary(from, to, incomeMinor, expenseMinor, incomeMinor - expenseMinor);
   }
 
   /**
