@@ -104,7 +104,7 @@ export function CategoryForm({
             <input
               id="cat-color"
               type="color"
-              className="h-10 w-full cursor-pointer rounded-lg border border-slate-300 bg-white p-1"
+              className="h-10 w-full cursor-pointer rounded-lg border border-border-strong bg-surface p-1"
               {...register('color')}
             />
           </Field>

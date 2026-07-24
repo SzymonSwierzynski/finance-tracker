@@ -22,8 +22,21 @@ public interface TransactionRepository
 
   Optional<Transaction> findByIdAndUserId(long id, long userId);
 
+  /** All of the user's transactions, oldest first — for data export / backup. */
+  List<Transaction> findByUserIdOrderByDateAscIdAsc(long userId);
+
   /** How many of the user's transactions reference any of the given categories. */
   long countByUserIdAndCategoryIdIn(long userId, Collection<Long> categoryIds);
+
+  /** The user's uncategorized transactions of the given types (for re-running rules). */
+  List<Transaction> findByUserIdAndCategoryIdIsNullAndTypeIn(
+      long userId, Collection<TransactionType> types);
+
+  /** Dedupe hashes already present for an account, for skipping duplicates on CSV import. */
+  @Query(
+      "SELECT t.dedupeHash FROM Transaction t WHERE t.userId = :userId AND t.accountId = :accountId")
+  List<String> findDedupeHashesByUserIdAndAccountId(
+      @Param("userId") long userId, @Param("accountId") long accountId);
 
   /**
    * Income/expense totals for a date range, in base (reporting) minor units. Each row is converted
@@ -90,6 +103,59 @@ public interface TransactionRepository
       @Param("to") LocalDate to,
       @Param("type") String type);
 
+  /**
+   * Base totals grouped by time bucket and type (income/expense) over a date range. {@code fmt} is
+   * a Postgres {@code to_char} pattern chosen by the interval ({@code 'YYYY-MM'} month, {@code
+   * 'IYYY-IW'} ISO week). Empty buckets are absent — the service zero-fills the range.
+   *
+   * <p>Groups by ordinal ({@code GROUP BY 1, 2}) so {@code :fmt} appears exactly once: referenced
+   * twice, Hibernate emits two positional params and Postgres then sees the SELECT and GROUP BY
+   * {@code to_char} expressions as different and rejects the grouping.
+   */
+  @Query(
+      value =
+          """
+          SELECT to_char(t.date, cast(:fmt as text)) AS period,
+                 t.type AS type,
+                 COALESCE(SUM(round(t.amount_minor * t.rate_to_base)), 0) AS baseMinor
+          FROM transactions t
+          WHERE t.user_id = :userId
+            AND t.date BETWEEN :from AND :to
+            AND t.type IN ('income', 'expense')
+          GROUP BY 1, 2
+          """,
+      nativeQuery = true)
+  List<PeriodSumRow> sumByPeriod(
+      @Param("userId") long userId,
+      @Param("from") LocalDate from,
+      @Param("to") LocalDate to,
+      @Param("fmt") String fmt);
+
+  /**
+   * Base totals grouped by time bucket and category (null = uncategorized) for one kind, over a
+   * date range. Folded into per-period category stacks (subcategories rolled to parents) in tested
+   * Java. Groups by ordinal so {@code :fmt} appears once (see {@link #sumByPeriod}).
+   */
+  @Query(
+      value =
+          """
+          SELECT to_char(t.date, cast(:fmt as text)) AS period,
+                 t.category_id AS categoryId,
+                 COALESCE(SUM(round(t.amount_minor * t.rate_to_base)), 0) AS baseMinor
+          FROM transactions t
+          WHERE t.user_id = :userId
+            AND t.date BETWEEN :from AND :to
+            AND t.type = :type
+          GROUP BY 1, 2
+          """,
+      nativeQuery = true)
+  List<PeriodCategorySumRow> sumByPeriodAndCategory(
+      @Param("userId") long userId,
+      @Param("from") LocalDate from,
+      @Param("to") LocalDate to,
+      @Param("fmt") String fmt,
+      @Param("type") String type);
+
   /** Native projection for {@link #summarize}. */
   interface SummaryRow {
     String getType();
@@ -104,5 +170,23 @@ public interface TransactionRepository
     BigDecimal getBaseMinor();
 
     long getTxnCount();
+  }
+
+  /** Projection for {@link #sumByPeriod}: base total per (period, type). */
+  interface PeriodSumRow {
+    String getPeriod();
+
+    String getType();
+
+    BigDecimal getBaseMinor();
+  }
+
+  /** Projection for {@link #sumByPeriodAndCategory}; {@code categoryId} null = uncategorized. */
+  interface PeriodCategorySumRow {
+    String getPeriod();
+
+    Long getCategoryId();
+
+    BigDecimal getBaseMinor();
   }
 }

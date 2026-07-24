@@ -39,7 +39,7 @@ export function RegisterPage() {
       footer={
         <>
           {t('auth.haveAccount')}{' '}
-          <Link to="/login" className="font-medium text-brand-600 hover:text-brand-700">
+          <Link to="/login" className="font-medium text-accent hover:text-accent">
             {t('auth.loginCta')}
           </Link>
         </>

@@ -1,5 +1,6 @@
 package com.financetracker.category;
 
+import com.financetracker.settings.SettingsService;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
@@ -27,34 +28,37 @@ public class DefaultCategorySeeder {
               "#3b82f6",
               List.of("Fuel", "Public transport", "Taxi")),
           new SeedParent(
-              "Housing",
-              CategoryKind.EXPENSE,
-              "#8b5cf6",
-              List.of("Rent", "Utilities", "Internet")),
-          new SeedParent(
-              "Health", CategoryKind.EXPENSE, "#ef4444", List.of("Pharmacy", "Doctor")),
+              "Housing", CategoryKind.EXPENSE, "#8b5cf6", List.of("Rent", "Utilities", "Internet")),
+          new SeedParent("Health", CategoryKind.EXPENSE, "#ef4444", List.of("Pharmacy", "Doctor")),
           new SeedParent(
               "Entertainment",
               CategoryKind.EXPENSE,
               "#ec4899",
               List.of("Subscriptions", "Hobbies")),
           new SeedParent(
-              "Shopping",
-              CategoryKind.EXPENSE,
-              "#eab308",
-              List.of("Clothes", "Electronics")),
+              "Shopping", CategoryKind.EXPENSE, "#eab308", List.of("Clothes", "Electronics")),
           new SeedParent("Salary", CategoryKind.INCOME, "#10b981", List.of()),
           new SeedParent("Other income", CategoryKind.INCOME, "#14b8a6", List.of()));
 
   private final CategoryRepository categoryRepository;
+  private final SettingsService settingsService;
 
-  public DefaultCategorySeeder(CategoryRepository categoryRepository) {
+  public DefaultCategorySeeder(
+      CategoryRepository categoryRepository, SettingsService settingsService) {
     this.categoryRepository = categoryRepository;
+    this.settingsService = settingsService;
   }
 
-  /** Seeds the default tree when {@code userId} has no categories yet. Safe to call repeatedly. */
-  public void seedIfEmpty(long userId) {
-    if (categoryRepository.countByUserId(userId) > 0) {
+  /**
+   * Seeds the default tree the first time it is asked to, and never again. Called on register and
+   * on login — the latter only so accounts created before seeding existed get their defaults once.
+   *
+   * <p>The guard is a persisted flag rather than "does this user have zero categories": the
+   * count-based version silently resurrected the defaults for anyone who had deliberately deleted
+   * them all.
+   */
+  public void seedIfNeeded(long userId) {
+    if (!settingsService.claimCategorySeeding(userId)) {
       return;
     }
     for (SeedParent parent : DEFAULTS) {

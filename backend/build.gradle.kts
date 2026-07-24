@@ -36,11 +36,16 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
+    // Prometheus-scrapeable metrics at /actuator/prometheus (Micrometer registry, auto-configured).
+    runtimeOnly("io.micrometer:micrometer-registry-prometheus")
 
     implementation("org.flywaydb:flyway-core")
     implementation("org.flywaydb:flyway-database-postgresql")
 
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:$springdocVersion")
+
+    // CSV import (Phase 4): robust quoted-field parsing of Polish bank exports.
+    implementation("org.apache.commons:commons-csv:1.10.0")
 
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")
@@ -82,6 +87,10 @@ val coverageExclusions =
         "com/financetracker/category/Category.class",
         "com/financetracker/common/UserOwnedEntity.class",
         "com/financetracker/common/BaseEntity.class",
+        "com/financetracker/rule/Rule.class",
+        "com/financetracker/importing/ImportBatch.class",
+        "com/financetracker/importing/ImportProfile.class",
+        "com/financetracker/recurring/RecurringTransaction.class",
     )
 
 tasks.jacocoTestReport {
@@ -111,9 +120,10 @@ tasks.jacocoTestCoverageVerification {
         rule {
             limit {
                 counter = "INSTRUCTION"
-                // Pragmatic floor for Phase 1 (money/auth/settings well covered);
-                // ramp toward the contract's ~80% in the hardening phase.
-                minimum = "0.50".toBigDecimal()
+                // Actual instruction coverage is ~93% (services + utils; the boilerplate excluded
+                // above). Floor set to 0.85 — comfortably past the contract's ~80% target, with
+                // headroom so a single new feature can't red the gate before its tests land.
+                minimum = "0.85".toBigDecimal()
             }
         }
     }

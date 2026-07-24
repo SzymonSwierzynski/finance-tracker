@@ -55,4 +55,7 @@ public class Transaction extends UserOwnedEntity {
 
   @Column(name = "dedupe_hash", nullable = false)
   private String dedupeHash;
+
+  @Column(name = "recurring_id")
+  private Long recurringId;
 }

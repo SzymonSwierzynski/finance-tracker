@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '@/api'
 import { Button, Card, CenteredState, Field, Input, PageHeader, Skeleton } from '@/components/primitives'
 import { useToast } from '@/components/Toast'
+import { FxRatesCard } from './FxRatesCard'
+import { ExportCard } from '@/features/export/ExportCard'
 import { useSettings, useUpdateSettings } from './hooks'
 
 export function SettingsPage() {
@@ -11,10 +13,13 @@ export function SettingsPage() {
   const { data, isLoading, isError, refetch } = useSettings()
   const update = useUpdateSettings()
   const [currency, setCurrency] = useState('')
-
-  useEffect(() => {
-    if (data) setCurrency(data.reportingCurrency)
-  }, [data])
+  // Seed the editable field from server state on load (and after a save refetches a new value)
+  // without an effect: a guarded setState during render is React's blessed way to sync to a prop.
+  const [syncedCurrency, setSyncedCurrency] = useState<string>()
+  if (data && data.reportingCurrency !== syncedCurrency) {
+    setSyncedCurrency(data.reportingCurrency)
+    setCurrency(data.reportingCurrency)
+  }
 
   const valid = /^[A-Za-z]{3}$/.test(currency)
 
@@ -30,7 +35,7 @@ export function SettingsPage() {
   }
 
   return (
-    <>
+    <div className="space-y-6">
       <PageHeader title={t('settings.title')} />
       {isLoading ? (
         <Card className="max-w-md p-5">
@@ -57,6 +62,8 @@ export function SettingsPage() {
           </div>
         </Card>
       )}
-    </>
+      <FxRatesCard />
+      <ExportCard />
+    </div>
   )
 }

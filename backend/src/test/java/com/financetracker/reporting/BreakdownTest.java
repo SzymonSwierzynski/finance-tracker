@@ -23,6 +23,7 @@ class BreakdownTest extends AbstractIntegrationTest {
   @Test
   void rollsUpToParentsWithDirectSliceAndUncategorized() throws Exception {
     RegisteredUser user = register("breakdown@example.com", "password123");
+    clearCategories(user);
     long account = createAccount(user);
 
     long food = createCategory(user, "Food", "expense", null);
@@ -73,6 +74,7 @@ class BreakdownTest extends AbstractIntegrationTest {
   @Test
   void parentIdFiltersToASingleParent() throws Exception {
     RegisteredUser user = register("breakdown-drill@example.com", "password123");
+    clearCategories(user);
     long account = createAccount(user);
     long food = createCategory(user, "Food", "expense", null);
     long groceries = createCategory(user, "Groceries", "expense", food);
@@ -94,6 +96,7 @@ class BreakdownTest extends AbstractIntegrationTest {
   @Test
   void incomeBreakdownIsSeparateFromExpense() throws Exception {
     RegisteredUser user = register("breakdown-income@example.com", "password123");
+    clearCategories(user);
     long account = createAccount(user);
     long salary = createCategory(user, "Salary", "income", null);
     incomeCategorized(user, account, 7000, salary);

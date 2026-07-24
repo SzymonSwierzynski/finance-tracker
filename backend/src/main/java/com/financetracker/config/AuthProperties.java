@@ -13,6 +13,8 @@ public record AuthProperties(
     @DefaultValue("15m") Duration accessTokenTtl,
     @DefaultValue("30d") Duration refreshTokenTtl,
     @DefaultValue("finance-tracker") String issuer,
+    /** Cron for the expired-refresh-token purge; read by {@code @Scheduled} as a placeholder. */
+    @DefaultValue("0 15 3 * * *") String tokenCleanupCron,
     @DefaultValue Cookie cookie,
     @DefaultValue Jwt jwt) {
 

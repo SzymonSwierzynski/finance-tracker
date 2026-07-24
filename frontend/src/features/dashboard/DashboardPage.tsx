@@ -1,25 +1,67 @@
-import { useMemo, useState } from 'react'
+import { type ReactNode, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Bar, BarChart, Cell, ResponsiveContainer, XAxis, YAxis } from 'recharts'
+import type { ComparisonMode } from '@/api'
 import { Button, Card, CenteredState, Input, PageHeader, Skeleton } from '@/components/primitives'
 import { Money, useFormatMoney } from '@/components/Money'
 import { formatDate, presetRange, todayIso } from '@/lib/date'
 import type { DateRange, PeriodPresetId } from '@/lib/date'
 import { toMajorNumber } from '@/lib/money'
 import { localeForLanguage } from '@/lib/i18n'
-import { useSummary } from '@/features/reports/hooks'
+import { useTheme, chartColors } from '@/lib/theme'
+import { useComparison, useSummary } from '@/features/reports/hooks'
 import { useTransactions } from '@/features/transactions/hooks'
 
 const PRESETS: PeriodPresetId[] = ['thisMonth', 'lastMonth', 'thisYear', 'custom']
 
-function StatCard({ label, minor, currency, tone }: { label: string; minor: number; currency: string; tone: 'income' | 'expense' | 'net' }) {
+function StatCard({
+  label,
+  minor,
+  currency,
+  tone,
+  previousMinor,
+  goodWhenUp,
+  compareLabel,
+}: {
+  label: string
+  minor: number
+  currency: string
+  tone: 'income' | 'expense' | 'net'
+  // When set, show the change vs this previous-period value.
+  previousMinor?: number
+  goodWhenUp?: boolean
+  compareLabel?: string
+}) {
+  const formatMoney = useFormatMoney()
   const ring = tone === 'income' ? 'ring-positive/20' : tone === 'expense' ? 'ring-negative/20' : 'ring-brand-200'
+  // Colour the amount by tone (income green, expense red, net neutral) rather than by sign — expense
+  // totals are positive numbers, so a sign-based colour would show them green like income.
+  const amount = tone === 'income' ? 'text-positive' : tone === 'expense' ? 'text-negative' : ''
+
+  let delta: ReactNode = null
+  if (previousMinor !== undefined) {
+    const d = minor - previousMinor
+    // % only when there's a base to compare against; otherwise show the absolute change.
+    const pct = previousMinor !== 0 ? (d / previousMinor) * 100 : null
+    const good = d === 0 ? null : d > 0 === Boolean(goodWhenUp)
+    const toneClass = good === null ? 'text-fg-subtle' : good ? 'text-positive' : 'text-negative'
+    const arrow = d === 0 ? '' : d > 0 ? '▲ ' : '▼ '
+    const change = d === 0 ? '—' : pct !== null ? `${Math.abs(pct).toFixed(1)}%` : formatMoney(Math.abs(d), currency)
+    delta = (
+      <p className={`mt-1 text-xs font-medium ${toneClass}`}>
+        {arrow}
+        {change} <span className="font-normal text-fg-subtle">{compareLabel}</span>
+      </p>
+    )
+  }
+
   return (
     <Card className={`p-5 ring-1 ${ring}`}>
-      <p className="text-sm text-slate-500">{label}</p>
-      <p className="mt-2 text-2xl font-semibold">
-        <Money minor={minor} currency={currency} colored={tone !== 'net'} />
+      <p className="text-sm text-fg-soft">{label}</p>
+      <p className={`mt-2 text-2xl font-semibold ${amount}`}>
+        <Money minor={minor} currency={currency} />
       </p>
+      {delta}
     </Card>
   )
 }
@@ -31,6 +73,7 @@ export function DashboardPage() {
 
   const [preset, setPreset] = useState<PeriodPresetId>('thisMonth')
   const [range, setRange] = useState<DateRange>(() => presetRange('thisMonth'))
+  const [compareMode, setCompareMode] = useState<'off' | ComparisonMode>('off')
 
   const onPreset = (p: PeriodPresetId) => {
     setPreset(p)
@@ -39,6 +82,14 @@ export function DashboardPage() {
 
   const { data: summary, isLoading, isError, refetch } = useSummary(range.from, range.to)
   const { data: recent } = useTransactions({ from: range.from, to: range.to, page: 0, size: 5 })
+  const comparison = useComparison(
+    range.from,
+    range.to,
+    compareMode === 'off' ? 'month' : compareMode,
+    compareMode !== 'off',
+  )
+  const previous = compareMode === 'off' ? undefined : comparison.data?.previous
+  const compareLabel = t(compareMode === 'year' ? 'dashboard.vsLastYear' : 'dashboard.vsLastMonth')
 
   const currency = summary?.currency ?? 'PLN'
   const chartData = useMemo(
@@ -50,6 +101,7 @@ export function DashboardPage() {
   )
 
   const hasActivity = (summary?.incomeMinor ?? 0) !== 0 || (summary?.expenseMinor ?? 0) !== 0
+  const cc = chartColors(useTheme().theme)
 
   return (
     <>
@@ -64,10 +116,18 @@ export function DashboardPage() {
         {preset === 'custom' && (
           <div className="flex items-center gap-2">
             <Input type="date" value={range.from} max={todayIso()} onChange={(e) => setRange((r) => ({ ...r, from: e.target.value }))} className="w-auto" />
-            <span className="text-slate-400">–</span>
+            <span className="text-fg-subtle">–</span>
             <Input type="date" value={range.to} onChange={(e) => setRange((r) => ({ ...r, to: e.target.value }))} className="w-auto" />
           </div>
         )}
+        <div className="ml-auto flex items-center gap-1.5">
+          <span className="text-xs text-fg-subtle">{t('dashboard.compare')}</span>
+          {(['off', 'month', 'year'] as const).map((m) => (
+            <Button key={m} variant={compareMode === m ? 'primary' : 'secondary'} size="sm" onClick={() => setCompareMode(m)}>
+              {t(`dashboard.compare_${m}`)}
+            </Button>
+          ))}
+        </div>
       </div>
 
       {isError ? (
@@ -84,25 +144,24 @@ export function DashboardPage() {
               ))
             ) : (
               <>
-                <StatCard label={t('dashboard.income')} minor={summary.incomeMinor} currency={currency} tone="income" />
-                <StatCard label={t('dashboard.expense')} minor={summary.expenseMinor} currency={currency} tone="expense" />
-                <StatCard label={t('dashboard.net')} minor={summary.netMinor} currency={currency} tone="net" />
+                <StatCard label={t('dashboard.income')} minor={summary.incomeMinor} currency={currency} tone="income" previousMinor={previous?.incomeMinor} goodWhenUp compareLabel={compareLabel} />
+                <StatCard label={t('dashboard.expense')} minor={summary.expenseMinor} currency={currency} tone="expense" previousMinor={previous?.expenseMinor} goodWhenUp={false} compareLabel={compareLabel} />
+                <StatCard label={t('dashboard.net')} minor={summary.netMinor} currency={currency} tone="net" previousMinor={previous?.netMinor} goodWhenUp compareLabel={compareLabel} />
               </>
             )}
           </div>
 
           <div className="mt-6 grid gap-6 lg:grid-cols-2">
             <Card className="p-5">
-              <h2 className="mb-4 text-sm font-semibold text-slate-700">{t('dashboard.incomeVsExpense')}</h2>
+              <h2 className="mb-4 text-sm font-semibold text-fg-muted">{t('dashboard.incomeVsExpense')}</h2>
               {!hasActivity ? (
-                <p className="py-12 text-center text-sm text-slate-400">{t('dashboard.empty')}</p>
+                <p className="py-12 text-center text-sm text-fg-subtle">{t('dashboard.empty')}</p>
               ) : (
                 <div className="h-56">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={chartData} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
-                      <XAxis dataKey="name" tickLine={false} axisLine={false} fontSize={12} />
-                      <YAxis tickLine={false} axisLine={false} width={70} fontSize={11} tickFormatter={(v: number) => formatMoney(Math.round(v * 100), currency, { currencyDisplay: 'none' })} />
-                      <Tooltip formatter={(v) => formatMoney(Math.round(Number(v) * 100), currency)} cursor={{ fill: 'rgba(0,0,0,0.04)' }} />
+                      <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fill: cc.axis, fontSize: 12 }} />
+                      <YAxis tickLine={false} axisLine={false} width={70} tick={{ fill: cc.axis, fontSize: 11 }} tickFormatter={(v: number) => formatMoney(Math.round(v * 100), currency, { currencyDisplay: 'none' })} />
                       <Bar dataKey="value" radius={[6, 6, 0, 0]}>
                         {chartData.map((entry) => (
                           <Cell key={entry.name} fill={entry.fill} />
@@ -115,16 +174,16 @@ export function DashboardPage() {
             </Card>
 
             <Card className="p-5">
-              <h2 className="mb-4 text-sm font-semibold text-slate-700">{t('dashboard.recent')}</h2>
+              <h2 className="mb-4 text-sm font-semibold text-fg-muted">{t('dashboard.recent')}</h2>
               {!recent || recent.items.length === 0 ? (
-                <p className="py-12 text-center text-sm text-slate-400">{t('dashboard.empty')}</p>
+                <p className="py-12 text-center text-sm text-fg-subtle">{t('dashboard.empty')}</p>
               ) : (
-                <ul className="divide-y divide-slate-100">
+                <ul className="divide-y divide-border-subtle">
                   {recent.items.map((tx) => (
                     <li key={tx.id} className="flex items-center justify-between py-2.5">
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-slate-800">{tx.description || t(`transactions.${tx.type}`)}</p>
-                        <p className="text-xs text-slate-400">{formatDate(tx.date, locale)}</p>
+                        <p className="truncate text-sm font-medium text-fg">{tx.description || t(`transactions.${tx.type}`)}</p>
+                        <p className="text-xs text-fg-subtle">{formatDate(tx.date, locale)}</p>
                       </div>
                       <Money
                         minor={tx.type === 'expense' ? -tx.amountMinor : tx.amountMinor}

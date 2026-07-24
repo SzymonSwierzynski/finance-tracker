@@ -41,9 +41,12 @@ public class TransactionController {
       @RequestParam(required = false) Long accountId,
       @RequestParam(required = false) TransactionType type,
       @RequestParam(required = false) Long categoryId,
+      @RequestParam(required = false) String q,
+      @RequestParam(required = false) String sort,
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "50") int size) {
-    return transactionService.list(user.id(), from, to, accountId, type, categoryId, page, size);
+    return transactionService.list(
+        user.id(), from, to, accountId, type, categoryId, q, sort, page, size);
   }
 
   @PostMapping

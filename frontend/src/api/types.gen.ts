@@ -20,6 +20,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/imports/profiles/{accountId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getProfile"];
+        put: operations["putProfile"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/fx/rates/{currency}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["upsert"];
+        post?: never;
+        delete: operations["delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/transactions": {
         parameters: {
             query?: never;
@@ -36,7 +68,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/categories": {
+    "/api/v1/rules": {
         parameters: {
             query?: never;
             header?: never;
@@ -46,6 +78,70 @@ export interface paths {
         get: operations["list_1"];
         put?: never;
         post: operations["create_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rules/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["apply"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/imports/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["preview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/imports/commit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["commit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_2"];
+        put?: never;
+        post: operations["create_2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -123,9 +219,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_2"];
+        get: operations["list_3"];
         put?: never;
-        post: operations["create_2"];
+        post: operations["create_3"];
         delete?: never;
         options?: never;
         head?: never;
@@ -158,10 +254,26 @@ export interface paths {
         get: operations["get_1"];
         put?: never;
         post?: never;
-        delete: operations["delete"];
+        delete: operations["delete_1"];
         options?: never;
         head?: never;
         patch: operations["update_1"];
+        trace?: never;
+    };
+    "/api/v1/rules/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["delete_2"];
+        options?: never;
+        head?: never;
+        patch: operations["update_2"];
         trace?: never;
     };
     "/api/v1/categories/{id}": {
@@ -174,10 +286,10 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete: operations["delete_1"];
+        delete: operations["delete_3"];
         options?: never;
         head?: never;
-        patch: operations["update_2"];
+        patch: operations["update_3"];
         trace?: never;
     };
     "/api/v1/accounts/{id}": {
@@ -193,7 +305,7 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch: operations["update_3"];
+        patch: operations["update_4"];
         trace?: never;
     };
     "/api/v1/reports/summary": {
@@ -220,6 +332,38 @@ export interface paths {
             cookie?: never;
         };
         get: operations["breakdown"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/imports/batches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["batches"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/fx/rates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_4"];
         put?: never;
         post?: never;
         delete?: never;
@@ -260,6 +404,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/imports/batches/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["deleteBatch"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -274,6 +434,40 @@ export interface components {
         };
         SettingsResponse: {
             reportingCurrency?: string;
+        };
+        ImportMapping: {
+            delimiter?: string;
+            encoding?: string;
+            hasHeader?: boolean;
+            /** Format: int32 */
+            dateIndex?: number;
+            dateFormat?: string;
+            /** Format: int32 */
+            descriptionIndex?: number;
+            /** @enum {string} */
+            amountMode: "signed" | "debitCredit";
+            /** Format: int32 */
+            amountIndex?: number;
+            expenseIsNegative?: boolean;
+            /** Format: int32 */
+            debitIndex?: number;
+            /** Format: int32 */
+            creditIndex?: number;
+        };
+        UpsertFxRateRequest: {
+            rateToBase: number;
+            source?: string;
+        };
+        FxRateResponse: {
+            currency?: string;
+            rateToBase?: number;
+            baseCurrency?: string;
+            stale?: boolean;
+            source?: string;
+            /** Format: date-time */
+            lastFetchedAt?: string;
+            /** Format: int64 */
+            version?: number;
         };
         CreateTransactionRequest: {
             /** Format: date */
@@ -319,6 +513,65 @@ export interface components {
             dedupeHash?: string;
             /** Format: int64 */
             version?: number;
+        };
+        CreateRuleRequest: {
+            pattern: string;
+            /** Format: int64 */
+            categoryId: number;
+            /** Format: int32 */
+            priority?: number;
+        };
+        RuleResponse: {
+            /** Format: int64 */
+            id?: number;
+            pattern?: string;
+            /** Format: int64 */
+            categoryId?: number;
+            /** Format: int32 */
+            priority?: number;
+            /** Format: int64 */
+            version?: number;
+        };
+        ApplyRulesResponse: {
+            /** Format: int32 */
+            scanned?: number;
+            /** Format: int32 */
+            categorized?: number;
+        };
+        PreviewResponse: {
+            delimiter?: string;
+            misdecoded?: boolean;
+            /** Format: int32 */
+            totalRows?: number;
+            /** Format: int32 */
+            validRows?: number;
+            /** Format: int32 */
+            duplicateRows?: number;
+            rows?: components["schemas"]["PreviewRow"][];
+        };
+        PreviewRow: {
+            /** Format: int32 */
+            index?: number;
+            /** Format: date */
+            date?: string;
+            /** Format: int64 */
+            amountMinor?: number;
+            /** @enum {string} */
+            type?: "expense" | "income" | "transfer";
+            description?: string;
+            valid?: boolean;
+            error?: string;
+            duplicate?: boolean;
+        };
+        CommitResponse: {
+            /** Format: int64 */
+            batchId?: number;
+            /** Format: int32 */
+            imported?: number;
+            /** Format: int32 */
+            skippedDuplicates?: number;
+            /** Format: int32 */
+            skippedInvalid?: number;
         };
         CreateCategoryRequest: {
             name: string;
@@ -397,6 +650,15 @@ export interface components {
             description?: string;
             note?: string;
         };
+        UpdateRuleRequest: {
+            /** Format: int64 */
+            version: number;
+            pattern?: string;
+            /** Format: int64 */
+            categoryId?: number;
+            /** Format: int32 */
+            priority?: number;
+        };
         UpdateCategoryRequest: {
             /** Format: int64 */
             version: number;
@@ -469,6 +731,21 @@ export interface components {
             count?: number;
             parents?: components["schemas"]["BreakdownParent"][];
         };
+        ImportBatchResponse: {
+            /** Format: int64 */
+            id?: number;
+            /** Format: int64 */
+            accountId?: number;
+            fileName?: string;
+            /** Format: int32 */
+            count?: number;
+            /** Format: date-time */
+            createdAt?: string;
+        };
+        FxRatesResponse: {
+            baseCurrency?: string;
+            rates?: components["schemas"]["FxRateResponse"][];
+        };
         AccountBalanceResponse: {
             /** Format: int64 */
             accountId?: number;
@@ -537,6 +814,108 @@ export interface operations {
             };
         };
     };
+    getProfile: {
+        parameters: {
+            query: {
+                user: components["schemas"]["AuthUser"];
+            };
+            header?: never;
+            path: {
+                accountId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ImportMapping"];
+                };
+            };
+        };
+    };
+    putProfile: {
+        parameters: {
+            query: {
+                user: components["schemas"]["AuthUser"];
+            };
+            header?: never;
+            path: {
+                accountId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportMapping"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ImportMapping"];
+                };
+            };
+        };
+    };
+    upsert: {
+        parameters: {
+            query: {
+                user: components["schemas"]["AuthUser"];
+            };
+            header?: never;
+            path: {
+                currency: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpsertFxRateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FxRateResponse"];
+                };
+            };
+        };
+    };
+    delete: {
+        parameters: {
+            query: {
+                user: components["schemas"]["AuthUser"];
+            };
+            header?: never;
+            path: {
+                currency: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     list: {
         parameters: {
             query: {
@@ -596,6 +975,138 @@ export interface operations {
         parameters: {
             query: {
                 user: components["schemas"]["AuthUser"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RuleResponse"][];
+                };
+            };
+        };
+    };
+    create_1: {
+        parameters: {
+            query: {
+                user: components["schemas"]["AuthUser"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateRuleRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RuleResponse"];
+                };
+            };
+        };
+    };
+    apply: {
+        parameters: {
+            query: {
+                user: components["schemas"]["AuthUser"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApplyRulesResponse"];
+                };
+            };
+        };
+    };
+    preview: {
+        parameters: {
+            query: {
+                accountId: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": {
+                    user?: components["schemas"]["AuthUser"];
+                    /** Format: binary */
+                    file: string;
+                    mapping: components["schemas"]["ImportMapping"];
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PreviewResponse"];
+                };
+            };
+        };
+    };
+    commit: {
+        parameters: {
+            query: {
+                accountId: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": {
+                    user?: components["schemas"]["AuthUser"];
+                    /** Format: binary */
+                    file: string;
+                    mapping: components["schemas"]["ImportMapping"];
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommitResponse"];
+                };
+            };
+        };
+    };
+    list_2: {
+        parameters: {
+            query: {
+                user: components["schemas"]["AuthUser"];
                 kind?: "expense" | "income";
             };
             header?: never;
@@ -615,7 +1126,7 @@ export interface operations {
             };
         };
     };
-    create_1: {
+    create_2: {
         parameters: {
             query: {
                 user: components["schemas"]["AuthUser"];
@@ -731,7 +1242,7 @@ export interface operations {
             };
         };
     };
-    list_2: {
+    list_3: {
         parameters: {
             query: {
                 user: components["schemas"]["AuthUser"];
@@ -754,7 +1265,7 @@ export interface operations {
             };
         };
     };
-    create_2: {
+    create_3: {
         parameters: {
             query: {
                 user: components["schemas"]["AuthUser"];
@@ -826,7 +1337,7 @@ export interface operations {
             };
         };
     };
-    delete: {
+    delete_1: {
         parameters: {
             query: {
                 user: components["schemas"]["AuthUser"];
@@ -876,7 +1387,57 @@ export interface operations {
             };
         };
     };
-    delete_1: {
+    delete_2: {
+        parameters: {
+            query: {
+                user: components["schemas"]["AuthUser"];
+            };
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    update_2: {
+        parameters: {
+            query: {
+                user: components["schemas"]["AuthUser"];
+            };
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateRuleRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RuleResponse"];
+                };
+            };
+        };
+    };
+    delete_3: {
         parameters: {
             query: {
                 user: components["schemas"]["AuthUser"];
@@ -900,7 +1461,7 @@ export interface operations {
             };
         };
     };
-    update_2: {
+    update_3: {
         parameters: {
             query: {
                 user: components["schemas"]["AuthUser"];
@@ -952,7 +1513,7 @@ export interface operations {
             };
         };
     };
-    update_3: {
+    update_4: {
         parameters: {
             query: {
                 user: components["schemas"]["AuthUser"];
@@ -1030,6 +1591,50 @@ export interface operations {
             };
         };
     };
+    batches: {
+        parameters: {
+            query: {
+                user: components["schemas"]["AuthUser"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ImportBatchResponse"][];
+                };
+            };
+        };
+    };
+    list_4: {
+        parameters: {
+            query: {
+                user: components["schemas"]["AuthUser"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FxRatesResponse"];
+                };
+            };
+        };
+    };
     me: {
         parameters: {
             query: {
@@ -1073,6 +1678,28 @@ export interface operations {
                 content: {
                     "*/*": components["schemas"]["AccountBalanceResponse"];
                 };
+            };
+        };
+    };
+    deleteBatch: {
+        parameters: {
+            query: {
+                user: components["schemas"]["AuthUser"];
+            };
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

@@ -1,0 +1,20 @@
+# Never ship host build artifacts / deps into the image build context — npm ci + vite build
+# regenerate them deterministically inside the build stage.
+node_modules
+dist
+dist-ssr
+
+# Test + tooling output
+test-results
+playwright-report
+blob-report
+.last-run.json
+coverage
+*.log
+
+# Local/editor cruft
+.DS_Store
+.vscode
+.idea
+Dockerfile
+.dockerignore

@@ -7,17 +7,36 @@ import com.financetracker.common.error.UnprocessableEntityException;
 import com.financetracker.reporting.dto.BreakdownResponse;
 import com.financetracker.reporting.dto.BreakdownResponse.BreakdownChild;
 import com.financetracker.reporting.dto.BreakdownResponse.BreakdownParent;
+import com.financetracker.reporting.dto.CashflowResponse;
+import com.financetracker.reporting.dto.CashflowResponse.CashflowBucket;
+import com.financetracker.reporting.dto.CategoryTrendResponse;
+import com.financetracker.reporting.dto.CategoryTrendResponse.CategorySeries;
+import com.financetracker.reporting.dto.CategoryTrendResponse.CategoryTrendBucket;
+import com.financetracker.reporting.dto.ComparisonResponse;
+import com.financetracker.reporting.dto.ComparisonResponse.Delta;
+import com.financetracker.reporting.dto.ComparisonResponse.PeriodSummary;
 import com.financetracker.reporting.dto.SummaryResponse;
+import com.financetracker.reporting.dto.TrendResponse;
+import com.financetracker.reporting.dto.TrendResponse.TrendBucket;
 import com.financetracker.settings.SettingsService;
 import com.financetracker.transaction.TransactionRepository;
 import com.financetracker.transaction.TransactionRepository.CategorySumRow;
+import com.financetracker.transaction.TransactionRepository.PeriodCategorySumRow;
+import com.financetracker.transaction.TransactionRepository.PeriodSumRow;
 import com.financetracker.transaction.TransactionRepository.SummaryRow;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.Period;
+import java.time.temporal.IsoFields;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
@@ -49,22 +68,55 @@ public class ReportingService {
   @Transactional(readOnly = true)
   public SummaryResponse summary(long userId, LocalDate from, LocalDate to) {
     requireRange(from, to);
-    List<SummaryRow> rows = transactionRepository.summarize(userId, from, to);
+    PeriodSummary s = periodSummary(userId, from, to);
+    return new SummaryResponse(
+        from,
+        to,
+        settingsService.reportingCurrency(userId),
+        s.incomeMinor(),
+        s.expenseMinor(),
+        s.netMinor());
+  }
 
+  /**
+   * Period-over-period comparison: the requested range vs the same range shifted back one {@code
+   * mode} unit (month or year), with the per-total delta. Reuses the summary aggregation for both
+   * periods; percentage change is derived at the display edge.
+   */
+  @Transactional(readOnly = true)
+  public ComparisonResponse comparison(long userId, LocalDate from, LocalDate to, String mode) {
+    requireRange(from, to);
+    String normalized = (mode == null || mode.isBlank()) ? "month" : mode.toLowerCase(Locale.ROOT);
+    Period shift =
+        switch (normalized) {
+          case "month" -> Period.ofMonths(1);
+          case "year" -> Period.ofYears(1);
+          default -> throw new UnprocessableEntityException("mode must be 'month' or 'year'.");
+        };
+    PeriodSummary current = periodSummary(userId, from, to);
+    PeriodSummary previous = periodSummary(userId, from.minus(shift), to.minus(shift));
+    Delta delta =
+        new Delta(
+            current.incomeMinor() - previous.incomeMinor(),
+            current.expenseMinor() - previous.expenseMinor(),
+            current.netMinor() - previous.netMinor());
+    return new ComparisonResponse(
+        settingsService.reportingCurrency(userId), normalized, current, previous, delta);
+  }
+
+  /** Income/expense/net (base minor units) for one range — the shared summary aggregation. */
+  private PeriodSummary periodSummary(long userId, LocalDate from, LocalDate to) {
     long incomeMinor = 0L;
     long expenseMinor = 0L;
-    for (SummaryRow row : rows) {
-      long base = row.getBaseMinor().setScale(0).longValueExact();
+    for (SummaryRow row : transactionRepository.summarize(userId, from, to)) {
+      long base = baseMinorOf(row.getBaseMinor());
       if ("income".equals(row.getType())) {
         incomeMinor = base;
       } else if ("expense".equals(row.getType())) {
         expenseMinor = base;
       }
     }
-
-    String currency = settingsService.reportingCurrency(userId);
-    return new SummaryResponse(
-        from, to, currency, incomeMinor, expenseMinor, incomeMinor - expenseMinor);
+    return new PeriodSummary(from, to, incomeMinor, expenseMinor, incomeMinor - expenseMinor);
   }
 
   /**
@@ -88,7 +140,7 @@ public class ReportingService {
     long count = 0L;
 
     for (CategorySumRow row : transactionRepository.sumByCategory(userId, from, to, kind.value())) {
-      long base = row.getBaseMinor().setScale(0).longValueExact();
+      long base = baseMinorOf(row.getBaseMinor());
       total += base;
       count += row.getTxnCount();
 
@@ -153,6 +205,137 @@ public class ReportingService {
     return new BreakdownResponse(kind, from, to, currency, total, count, out);
   }
 
+  /**
+   * Income + expense per time bucket over the range (zero-filled), for a spending-over-time chart.
+   */
+  @Transactional(readOnly = true)
+  public TrendResponse trend(long userId, LocalDate from, LocalDate to, String interval) {
+    requireRange(from, to);
+    Interval iv = Interval.parse(interval);
+    List<TrendBucket> buckets = new ArrayList<>();
+    for (Map.Entry<String, long[]> e : incomeExpenseByPeriod(userId, from, to, iv).entrySet()) {
+      buckets.add(new TrendBucket(e.getKey(), e.getValue()[0], e.getValue()[1]));
+    }
+    return new TrendResponse(
+        from, to, iv.value, settingsService.reportingCurrency(userId), buckets);
+  }
+
+  /** Income vs expense per time bucket with a running net accumulated across the range. */
+  @Transactional(readOnly = true)
+  public CashflowResponse cashflow(long userId, LocalDate from, LocalDate to, String interval) {
+    requireRange(from, to);
+    Interval iv = Interval.parse(interval);
+    List<CashflowBucket> buckets = new ArrayList<>();
+    long running = 0L;
+    for (Map.Entry<String, long[]> e : incomeExpenseByPeriod(userId, from, to, iv).entrySet()) {
+      long income = e.getValue()[0];
+      long expense = e.getValue()[1];
+      long net = income - expense;
+      running += net;
+      buckets.add(new CashflowBucket(e.getKey(), income, expense, net, running));
+    }
+    return new CashflowResponse(
+        from, to, iv.value, settingsService.reportingCurrency(userId), buckets);
+  }
+
+  /**
+   * period -> [income, expense] in base minor units, zero-filled across [from, to] and
+   * chronological (TreeMap). Every calendar day seeds its bucket key so gaps render as zero; the
+   * SQL fills the non-empty ones.
+   */
+  private Map<String, long[]> incomeExpenseByPeriod(
+      long userId, LocalDate from, LocalDate to, Interval iv) {
+    Map<String, long[]> byPeriod = new TreeMap<>();
+    for (LocalDate d = from; !d.isAfter(to); d = d.plusDays(1)) {
+      byPeriod.computeIfAbsent(iv.key(d), k -> new long[2]);
+    }
+    for (PeriodSumRow row : transactionRepository.sumByPeriod(userId, from, to, iv.fmt)) {
+      long[] slot = byPeriod.computeIfAbsent(row.getPeriod(), k -> new long[2]);
+      long base = baseMinorOf(row.getBaseMinor());
+      if ("income".equals(row.getType())) {
+        slot[0] = base;
+      } else if ("expense".equals(row.getType())) {
+        slot[1] = base;
+      }
+    }
+    return byPeriod;
+  }
+
+  /** Expense (or income) over time stacked by top-level category, for a stacked chart. */
+  @Transactional(readOnly = true)
+  public CategoryTrendResponse categoryTrend(
+      long userId, LocalDate from, LocalDate to, String interval, CategoryKind kind) {
+    requireRange(from, to);
+    Interval iv = Interval.parse(interval);
+    Map<Long, Category> byId =
+        categoryRepository.findByUserIdOrderByNameAsc(userId).stream()
+            .collect(Collectors.toMap(Category::getId, Function.identity()));
+
+    Map<String, Map<String, Long>> amountsByPeriod = new TreeMap<>();
+    for (LocalDate d = from; !d.isAfter(to); d = d.plusDays(1)) {
+      amountsByPeriod.computeIfAbsent(iv.key(d), k -> new HashMap<>());
+    }
+
+    Map<String, SeriesAcc> seriesByKey = new LinkedHashMap<>();
+    for (PeriodCategorySumRow row :
+        transactionRepository.sumByPeriodAndCategory(userId, from, to, iv.fmt, kind.value())) {
+      long base = baseMinorOf(row.getBaseMinor());
+      Category cat = row.getCategoryId() == null ? null : byId.get(row.getCategoryId());
+
+      String key;
+      Long seriesCatId;
+      String name;
+      String color;
+      if (cat == null) {
+        key = "uncategorized";
+        seriesCatId = null;
+        name = "Uncategorized";
+        color = UNCATEGORIZED_COLOR;
+      } else if (cat.getParentId() == null) {
+        seriesCatId = cat.getId();
+        key = String.valueOf(seriesCatId);
+        name = cat.getName();
+        color = cat.getColor();
+      } else {
+        Category parent = byId.get(cat.getParentId());
+        seriesCatId = parent != null ? parent.getId() : cat.getParentId();
+        key = String.valueOf(seriesCatId);
+        name = parent != null ? parent.getName() : "Unknown";
+        color = parent != null ? parent.getColor() : UNCATEGORIZED_COLOR;
+      }
+
+      SeriesAcc acc =
+          seriesByKey.computeIfAbsent(key, k -> new SeriesAcc(seriesCatId, name, color));
+      acc.total += base;
+      amountsByPeriod
+          .computeIfAbsent(row.getPeriod(), k -> new HashMap<>())
+          .merge(key, base, Long::sum);
+    }
+
+    List<CategorySeries> series =
+        seriesByKey.values().stream()
+            .sorted((a, b) -> Long.compare(b.total, a.total))
+            .map(a -> new CategorySeries(a.categoryId, a.name, a.color))
+            .toList();
+    List<CategoryTrendBucket> buckets = new ArrayList<>();
+    for (Map.Entry<String, Map<String, Long>> e : amountsByPeriod.entrySet()) {
+      buckets.add(new CategoryTrendBucket(e.getKey(), e.getValue()));
+    }
+    return new CategoryTrendResponse(
+        from, to, iv.value, settingsService.reportingCurrency(userId), kind, series, buckets);
+  }
+
+  /**
+   * Narrows a SQL aggregate to integer minor units. The queries already {@code round()} each row
+   * before summing, so the value arrives with scale 0 — but an unqualified {@code setScale(0)}
+   * would throw the moment that stopped being true. Rounding half-up explicitly keeps the failure
+   * mode a (correct) rounding rather than an ArithmeticException, and matches how the rest of the
+   * app converts to base.
+   */
+  private static long baseMinorOf(BigDecimal aggregate) {
+    return aggregate.setScale(0, RoundingMode.HALF_UP).longValueExact();
+  }
+
   private static void requireRange(LocalDate from, LocalDate to) {
     if (from.isAfter(to)) {
       throw new UnprocessableEntityException("'from' must not be after 'to'.");
@@ -180,4 +363,54 @@ public class ReportingService {
   }
 
   private record ChildAcc(Long id, String name, long base) {}
+
+  /** Mutable accumulator for a category-trend series (top-level category) while folding. */
+  private static final class SeriesAcc {
+    private final Long categoryId;
+    private final String name;
+    private final String color;
+    private long total;
+
+    private SeriesAcc(Long categoryId, String name, String color) {
+      this.categoryId = categoryId;
+      this.name = name;
+      this.color = color;
+    }
+  }
+
+  /** Time-bucket granularity, its Postgres {@code to_char} pattern, and a matching Java key. */
+  private enum Interval {
+    MONTH("month", "YYYY-MM"),
+    WEEK("week", "IYYY-IW");
+
+    private final String value;
+    private final String fmt;
+
+    Interval(String value, String fmt) {
+      this.value = value;
+      this.fmt = fmt;
+    }
+
+    static Interval parse(String interval) {
+      if (interval == null || interval.isBlank() || interval.equalsIgnoreCase("month")) {
+        return MONTH;
+      }
+      if (interval.equalsIgnoreCase("week")) {
+        return WEEK;
+      }
+      throw new UnprocessableEntityException("interval must be 'month' or 'week'.");
+    }
+
+    /** The bucket key for a date, matching what {@code to_char(date, fmt)} produces in SQL. */
+    String key(LocalDate d) {
+      if (this == WEEK) {
+        return String.format(
+            Locale.ROOT,
+            "%04d-%02d",
+            d.get(IsoFields.WEEK_BASED_YEAR),
+            d.get(IsoFields.WEEK_OF_WEEK_BASED_YEAR));
+      }
+      return String.format(Locale.ROOT, "%04d-%02d", d.getYear(), d.getMonthValue());
+    }
+  }
 }

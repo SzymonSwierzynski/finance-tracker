@@ -31,6 +31,14 @@ public class Settings {
   @Column(name = "reporting_currency", nullable = false)
   private String reportingCurrency = "PLN";
 
+  /**
+   * When the default category tree was seeded for this user, or null if it never was. This is a
+   * persisted fact rather than an inference from "the user has no categories": someone who deletes
+   * every category has made a choice, and the seeder must not undo it on their next login.
+   */
+  @Column(name = "categories_seeded_at")
+  private Instant categoriesSeededAt;
+
   @CreatedDate
   @Column(name = "created_at", nullable = false, updatable = false)
   private Instant createdAt;

@@ -8,6 +8,20 @@ server:
   # Trust X-Forwarded-* from the reverse proxy so Secure cookies / scheme are correct.
   forward-headers-strategy: framework
 
+logging:
+  # Structured JSON logs to stdout in prod (12-factor); ECS fields include the requestId MDC.
+  structured:
+    format:
+      console: ecs
+
+springdoc:
+  # No public API-docs / Swagger UI in prod — the full contract is a recon aid. Enable it only for
+  # CI type-gen (default profile), never on the deployed origin.
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
 app:
   auth:
     cookie:

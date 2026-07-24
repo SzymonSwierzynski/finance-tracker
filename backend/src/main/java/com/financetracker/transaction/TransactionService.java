@@ -15,12 +15,15 @@ import com.financetracker.fx.RateResolver;
 import com.financetracker.transaction.dto.CreateTransactionRequest;
 import com.financetracker.transaction.dto.TransactionResponse;
 import com.financetracker.transaction.dto.UpdateTransactionRequest;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.persistence.criteria.Predicate;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -44,16 +47,23 @@ public class TransactionService {
   private final AccountRepository accountRepository;
   private final CategoryRepository categoryRepository;
   private final RateResolver rateResolver;
+  private final Counter transactionsCreated;
 
   public TransactionService(
       TransactionRepository transactionRepository,
       AccountRepository accountRepository,
       CategoryRepository categoryRepository,
-      RateResolver rateResolver) {
+      RateResolver rateResolver,
+      MeterRegistry meterRegistry) {
     this.transactionRepository = transactionRepository;
     this.accountRepository = accountRepository;
     this.categoryRepository = categoryRepository;
     this.rateResolver = rateResolver;
+    // "entered" not "created": Prometheus treats a _created suffix as reserved and would drop it.
+    this.transactionsCreated =
+        Counter.builder("financetracker.transactions.entered")
+            .description("Manually-entered transactions created")
+            .register(meterRegistry);
   }
 
   @Transactional
@@ -103,7 +113,9 @@ public class TransactionService {
         dedupeHash(
             request.date(), request.amountMinor(), currency, request.accountId(), description));
 
-    return toResponse(transactionRepository.save(tx));
+    TransactionResponse response = toResponse(transactionRepository.save(tx));
+    transactionsCreated.increment();
+    return response;
   }
 
   @Transactional(readOnly = true)
@@ -114,18 +126,37 @@ public class TransactionService {
       Long accountId,
       TransactionType type,
       Long categoryId,
+      String q,
+      String sort,
       int page,
       int size) {
     int safeSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
     int safePage = Math.max(page, 0);
-    // Newest first; id as a stable tie-break (matches the prototype).
-    Pageable pageable =
-        PageRequest.of(safePage, safeSize, Sort.by(Sort.Order.desc("date"), Sort.Order.desc("id")));
+    Pageable pageable = PageRequest.of(safePage, safeSize, parseSort(sort));
     Page<Transaction> result =
         transactionRepository.findAll(
-            filter(userId, from, to, accountId, type, categoryId), pageable);
+            filter(userId, from, to, accountId, type, categoryId, q), pageable);
     List<TransactionResponse> items = result.getContent().stream().map(this::toResponse).toList();
     return PageResponse.of(items, result);
+  }
+
+  private static final Map<String, String> SORTABLE_FIELDS =
+      Map.of("date", "date", "amount", "amountMinor", "createdAt", "createdAt");
+
+  /** Parse a {@code field,dir} sort against a whitelist, tie-broken by id for stable paging. */
+  private static Sort parseSort(String sort) {
+    if (!StringUtils.hasText(sort)) {
+      return Sort.by(Sort.Order.desc("date"), Sort.Order.desc("id")); // newest first (default)
+    }
+    String[] parts = sort.split(",");
+    String field = SORTABLE_FIELDS.get(parts[0].trim());
+    if (field == null) {
+      throw new UnprocessableEntityException("Cannot sort by '" + parts[0].trim() + "'.");
+    }
+    boolean desc = parts.length < 2 || !"asc".equalsIgnoreCase(parts[1].trim());
+    return Sort.by(
+        desc ? Sort.Order.desc(field) : Sort.Order.asc(field),
+        desc ? Sort.Order.desc("id") : Sort.Order.asc("id"));
   }
 
   /**
@@ -138,7 +169,8 @@ public class TransactionService {
       LocalDate to,
       Long accountId,
       TransactionType type,
-      Long categoryId) {
+      Long categoryId,
+      String q) {
     return (root, query, cb) -> {
       List<Predicate> predicates = new ArrayList<>();
       predicates.add(cb.equal(root.get("userId"), userId));
@@ -159,6 +191,14 @@ public class TransactionService {
       }
       if (categoryId != null) {
         predicates.add(cb.equal(root.get("categoryId"), categoryId));
+      }
+      if (StringUtils.hasText(q)) {
+        // Free-text search over description + note, case-insensitive substring.
+        String like = "%" + q.trim().toLowerCase(Locale.ROOT) + "%";
+        predicates.add(
+            cb.or(
+                cb.like(cb.lower(root.get("description")), like),
+                cb.like(cb.lower(root.get("note")), like)));
       }
       return cb.and(predicates.toArray(new Predicate[0]));
     };

@@ -43,7 +43,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const tones: Record<ToastTone, string> = {
     success: 'border-positive/30 bg-positive-soft text-positive',
     error: 'border-negative/30 bg-negative-soft text-negative',
-    info: 'border-slate-200 bg-white text-slate-700',
+    info: 'border-border bg-surface text-fg-muted',
   }
 
   return (
@@ -64,6 +64,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   )
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- hook co-located with its provider
 export function useToast(): ToastApi {
   const ctx = useContext(ToastContext)
   if (!ctx) throw new Error('useToast must be used within ToastProvider')

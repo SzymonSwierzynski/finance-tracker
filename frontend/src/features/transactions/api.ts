@@ -12,6 +12,9 @@ export interface TransactionFilters {
   to?: string
   accountId?: number
   type?: TransactionType
+  categoryId?: number
+  q?: string
+  sort?: string
   page?: number
   size?: number
 }

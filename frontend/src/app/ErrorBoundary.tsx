@@ -23,9 +23,9 @@ export class ErrorBoundary extends Component<Props, State> {
   render(): ReactNode {
     if (this.state.error) {
       return (
-        <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-slate-50 p-6 text-center">
-          <h1 className="text-lg font-semibold text-slate-900">Something went wrong</h1>
-          <p className="max-w-md text-sm text-slate-500">
+        <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-surface-2 p-6 text-center">
+          <h1 className="text-lg font-semibold text-fg">Something went wrong</h1>
+          <p className="max-w-md text-sm text-fg-soft">
             The app hit an unexpected error. Reloading usually fixes it.
           </p>
           <button
