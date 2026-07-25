@@ -33,6 +33,7 @@ import java.time.Period;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.IsoFields;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -138,7 +139,10 @@ public class ReportingService {
     List<CategoryMover> out =
         movers.values().stream()
             .map(m -> new CategoryMover(m.categoryId, m.name, m.color, m.current, m.previous))
-            .sorted((a, b) -> Long.compare(Math.abs(b.deltaMinor()), Math.abs(a.deltaMinor())))
+            .sorted(
+                Comparator.comparingLong((CategoryMover m) -> Math.abs(m.deltaMinor()))
+                    .reversed()
+                    .thenComparing(CategoryMover::name))
             .toList();
 
     return new TrendComparisonResponse(
