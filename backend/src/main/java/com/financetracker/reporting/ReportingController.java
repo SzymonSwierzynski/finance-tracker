@@ -8,6 +8,7 @@ import com.financetracker.reporting.dto.CashflowResponse;
 import com.financetracker.reporting.dto.CategoryTrendResponse;
 import com.financetracker.reporting.dto.ComparisonResponse;
 import com.financetracker.reporting.dto.SummaryResponse;
+import com.financetracker.reporting.dto.TrendComparisonResponse;
 import com.financetracker.reporting.dto.TrendResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import java.time.LocalDate;
@@ -43,6 +44,14 @@ public class ReportingController {
       @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
       @RequestParam(defaultValue = "month") String mode) {
     return reportingService.comparison(user.id(), from, to, mode);
+  }
+
+  @GetMapping("/trend-comparison")
+  public TrendComparisonResponse trendComparison(
+      @CurrentUser AuthUser user,
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+    return reportingService.trendComparison(user.id(), from, to);
   }
 
   @GetMapping("/breakdown")
