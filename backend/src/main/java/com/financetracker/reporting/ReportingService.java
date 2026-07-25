@@ -16,6 +16,8 @@ import com.financetracker.reporting.dto.ComparisonResponse;
 import com.financetracker.reporting.dto.ComparisonResponse.Delta;
 import com.financetracker.reporting.dto.ComparisonResponse.PeriodSummary;
 import com.financetracker.reporting.dto.SummaryResponse;
+import com.financetracker.reporting.dto.TrendComparisonResponse;
+import com.financetracker.reporting.dto.TrendComparisonResponse.CategoryMover;
 import com.financetracker.reporting.dto.TrendResponse;
 import com.financetracker.reporting.dto.TrendResponse.TrendBucket;
 import com.financetracker.settings.SettingsService;
@@ -28,8 +30,10 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.Period;
+import java.time.temporal.ChronoUnit;
 import java.time.temporal.IsoFields;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -102,6 +106,91 @@ public class ReportingService {
             current.netMinor() - previous.netMinor());
     return new ComparisonResponse(
         settingsService.reportingCurrency(userId), normalized, current, previous, delta);
+  }
+
+  /**
+   * Trends period-comparison: the requested range vs the immediately-preceding range of equal
+   * length, with the per-total delta and expense-category movers rolled up to top-level parents and
+   * ordered by absolute change. Reuses the summary aggregation and {@code sumByCategory} query.
+   */
+  @Transactional(readOnly = true)
+  public TrendComparisonResponse trendComparison(long userId, LocalDate from, LocalDate to) {
+    requireRange(from, to);
+    long days = ChronoUnit.DAYS.between(from, to) + 1;
+    LocalDate prevTo = from.minusDays(1);
+    LocalDate prevFrom = prevTo.minusDays(days - 1);
+
+    PeriodSummary current = periodSummary(userId, from, to);
+    PeriodSummary previous = periodSummary(userId, prevFrom, prevTo);
+    Delta delta =
+        new Delta(
+            current.incomeMinor() - previous.incomeMinor(),
+            current.expenseMinor() - previous.expenseMinor(),
+            current.netMinor() - previous.netMinor());
+
+    Map<Long, Category> byId =
+        categoryRepository.findByUserIdOrderByNameAsc(userId).stream()
+            .collect(Collectors.toMap(Category::getId, Function.identity()));
+    // Null key = the Uncategorized bucket (LinkedHashMap permits a single null key).
+    Map<Long, MoverAcc> movers = new LinkedHashMap<>();
+    accumulateExpenseByParent(userId, from, to, byId, movers, true);
+    accumulateExpenseByParent(userId, prevFrom, prevTo, byId, movers, false);
+
+    List<CategoryMover> out =
+        movers.values().stream()
+            .map(m -> new CategoryMover(m.categoryId, m.name, m.color, m.current, m.previous))
+            .sorted(
+                Comparator.comparingLong((CategoryMover m) -> Math.abs(m.deltaMinor()))
+                    .reversed()
+                    .thenComparing(CategoryMover::name))
+            .toList();
+
+    return new TrendComparisonResponse(
+        settingsService.reportingCurrency(userId), current, previous, delta, out);
+  }
+
+  /**
+   * Folds one range's expense rows into per-top-level-parent movers (subcategories roll up to their
+   * parent; null/unknown category -> Uncategorized). {@code isCurrent} routes the sum into the
+   * current or previous side of each accumulator.
+   */
+  private void accumulateExpenseByParent(
+      long userId,
+      LocalDate from,
+      LocalDate to,
+      Map<Long, Category> byId,
+      Map<Long, MoverAcc> movers,
+      boolean isCurrent) {
+    for (CategorySumRow row : transactionRepository.sumByCategory(userId, from, to, "expense")) {
+      long base = baseMinorOf(row.getBaseMinor());
+      Long catId = row.getCategoryId();
+      Category cat = catId == null ? null : byId.get(catId);
+
+      Long key;
+      String name;
+      String color;
+      if (cat == null) {
+        key = null;
+        name = "Uncategorized";
+        color = UNCATEGORIZED_COLOR;
+      } else if (cat.getParentId() == null) {
+        key = cat.getId();
+        name = cat.getName();
+        color = cat.getColor();
+      } else {
+        Category parent = byId.get(cat.getParentId());
+        key = parent != null ? parent.getId() : cat.getParentId();
+        name = parent != null ? parent.getName() : "Unknown";
+        color = parent != null ? parent.getColor() : UNCATEGORIZED_COLOR;
+      }
+
+      MoverAcc acc = movers.computeIfAbsent(key, k -> new MoverAcc(k, name, color));
+      if (isCurrent) {
+        acc.current += base;
+      } else {
+        acc.previous += base;
+      }
+    }
   }
 
   /** Income/expense/net (base minor units) for one range — the shared summary aggregation. */
@@ -363,6 +452,21 @@ public class ReportingService {
   }
 
   private record ChildAcc(Long id, String name, long base) {}
+
+  /** Mutable accumulator for a top-level expense mover (current vs previous spend). */
+  private static final class MoverAcc {
+    private final Long categoryId;
+    private final String name;
+    private final String color;
+    private long current;
+    private long previous;
+
+    private MoverAcc(Long categoryId, String name, String color) {
+      this.categoryId = categoryId;
+      this.name = name;
+      this.color = color;
+    }
+  }
 
   /** Mutable accumulator for a category-trend series (top-level category) while folding. */
   private static final class SeriesAcc {

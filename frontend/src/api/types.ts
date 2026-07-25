@@ -407,3 +407,24 @@ export interface Budgets {
   currency: string
   items: BudgetProgress[]
 }
+
+// --- Phase 7: Trends period-comparison ---
+// Hand-declared interim; run `npm run gen:api` (backend running) to source from OpenAPI.
+
+export interface CategoryMover {
+  categoryId: number | null
+  name: string
+  color: string
+  currentMinor: number
+  previousMinor: number
+  deltaMinor: number
+}
+
+/** Current vs the immediately-preceding equal-length period, with expense movers. */
+export interface TrendComparison {
+  currency: string
+  current: ComparisonPeriod
+  previous: ComparisonPeriod
+  delta: { incomeMinor: number; expenseMinor: number; netMinor: number }
+  movers: CategoryMover[]
+}

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts'
 import type { BreakdownParent, CategoryKind } from '@/api'
 import { CATEGORY_KINDS } from '@/api'

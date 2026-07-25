@@ -92,6 +92,10 @@ const resources = {
       trends: {
         title: 'Trends', total: 'Total', category: 'By category', month: 'Monthly', week: 'Weekly',
         income: 'Income', expense: 'Expense', net: 'Running net', empty: 'No activity in this period yet.',
+        compare: 'Compare to previous period', vsPrev: 'vs prev', expenseTotal: 'Expenses', netTotal: 'Net',
+        moversTitle: 'Category movers · expenses vs previous', moverNew: 'new', moverGone: 'gone',
+        noMovers: 'No comparable spending in either period.',
+        highlight: 'Biggest mover: {{name}} ({{change}}) vs the previous period.',
       },
       settings: {
         title: 'Settings', reportingCurrency: 'Reporting currency',
@@ -203,6 +207,10 @@ const resources = {
       trends: {
         title: 'Trendy', total: 'Razem', category: 'Wg kategorii', month: 'Miesięcznie', week: 'Tygodniowo',
         income: 'Przychody', expense: 'Wydatki', net: 'Saldo skumulowane', empty: 'Brak aktywności w tym okresie.',
+        compare: 'Porównaj z poprzednim okresem', vsPrev: 'wzgl. poprz.', expenseTotal: 'Wydatki', netTotal: 'Saldo',
+        moversTitle: 'Zmiany kategorii · wydatki wzgl. poprzedniego', moverNew: 'nowa', moverGone: 'brak',
+        noMovers: 'Brak porównywalnych wydatków w obu okresach.',
+        highlight: 'Największa zmiana: {{name}} ({{change}}) wzgl. poprzedniego okresu.',
       },
       settings: {
         title: 'Ustawienia', reportingCurrency: 'Waluta raportowania',
