@@ -1,73 +1,62 @@
-# React + TypeScript + Vite
+# Frontend — Finance Tracker SPA
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Vite + React 19 + TypeScript (strict) single-page app for the Finance Tracker. Talks to the Spring
+Boot API at `/api/v1`. See the root [README](../README.md) for the whole stack and
+[docs/architecture.md](../docs/architecture.md) for the system design.
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Vite 8** (build + dev server, HMR)
+- **React 19** + **TypeScript** (strict)
+- **Tailwind v4** — semantic CSS-variable tokens, class-based dark mode
+- **TanStack Query** — server state, caching, invalidation
+- **React Router 8** — routing (classic component API)
+- **React Hook Form + Zod** — forms and validation
+- **i18next** — pl-PL (primary) + en
+- **Recharts** — charts (colors read from theme tokens)
+- **Vitest** — unit tests · **Playwright** — E2E
 
-## React Compiler
+## Scripts
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run dev        # Vite dev server on :5173 (proxies /api → :8080)
+npm run build      # tsc -b (typecheck) then vite build → dist/
+npm run preview    # serve the production build locally
+npm run lint       # eslint .
+npm test           # vitest run (unit)
+npm run test:watch # vitest watch
+npm run e2e         # Playwright E2E (needs the real stack up — see docs/development.md)
+npm run gen:api    # regenerate src/api/types.gen.ts from the running backend's OpenAPI
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Structure
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
 ```
+src/
+  api/          client.ts (single fetch wrapper: auth + one-shot refresh + ApiError),
+                types.gen.ts (generated from OpenAPI — do not hand-edit), types.ts (curated aliases)
+  app/          App, AppLayout, route guards
+  components/   shared UI primitives (StatCard, skeletons, …)
+  features/     feature folders: auth, accounts, transactions, categories, breakdown,
+                trends, reports, budgets, recurring, import, rules, fx, dashboard, settings
+  lib/          cross-cutting: money, date, i18n, color, theme
+```
+
+## Conventions
+
+- **Data flow:** components → hooks (TanStack Query) → feature `api.ts` → `src/api/client.ts`.
+  Never `fetch` from a component.
+- **Money is integer minor units;** format only at the display edge via `lib/money.ts`.
+- **Auth:** the access token lives in memory only (never `localStorage`); the refresh token is an
+  HttpOnly cookie. `client.ts` retries once on a 401 via `POST /auth/refresh`.
+- **Generated types are `T | undefined`, not `null`** — omit optional fields rather than sending null.
+- **Dark mode** is class-based Tailwind v4 with semantic tokens; prefer tokens over scattered
+  `dark:` variants. Charts read colors from the tokens.
+- Mutations invalidate the right query keys (a transaction invalidates reports + account balances; a
+  restore invalidates everything).
+
+## Lockfile note
+
+`package-lock.json` must stay **cross-platform complete**. Do not regenerate it with a bare
+`npm install` on macOS — that prunes Linux-only optional deps (`@emnapi/*`) and breaks `npm ci` on
+Linux CI. Regenerate inside Linux instead (see [docs/development.md](../docs/development.md)).

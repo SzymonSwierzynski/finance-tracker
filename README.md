@@ -1,83 +1,112 @@
 # Personal Finance Tracker
 
-Multi-user personal finance app — *see where my money goes*. React + Tailwind SPA over a Spring
-Boot REST API on PostgreSQL. The build contract is [`CLAUDE.md`](CLAUDE.md); the original Dexie
-prototype lives under [`reference/`](reference/).
+Multi-user personal finance app — **see where your money goes**: spending by category over time,
+across accounts and currencies, with Polish-bank CSV import. A React + Tailwind single-page app over
+a Spring Boot REST API on PostgreSQL.
 
-> **Status — Phase 2 (Core loop), backend.** On top of the Phase 1 foundations (auth, settings,
-> money/error model, security, OpenAPI, CI): accounts CRUD + archive + balance, manual transactions
-> (with FX rate locked at entry, transfers and dedupe hashing), filtered/paged transaction listing,
-> and the period income/expense/net summary in base currency. The React frontend lands in a later
-> round.
+> **Status — feature-complete.** Auth, accounts, two-level categories, multi-currency transactions
+> with FX locked at entry, CSV import + rules engine, recurring templates, budgets, reporting
+> (breakdown / trend / cashflow / period comparison), export/backup/restore, observability, dark
+> mode, and one-command Docker deployment are all shipped and green in CI.
+
+## Features
+
+- **Accounts & transactions** — multiple accounts and currencies; income / expense / transfer;
+  filter, search, and sort. FX rate is locked at entry so historical reports never drift.
+- **Categories** — two-level, with 26 sensible defaults seeded per user.
+- **Reporting** — period summary, category breakdown (with subcategory roll-up), trend and cashflow
+  charts, and period-over-period comparison (MoM / YoY, plus an equal-length "vs previous period"
+  comparison on the Trends tab).
+- **CSV import** — Polish-bank statements: encoding/delimiter/date auto-detection, dedupe, and
+  rules-based auto-categorization, with undoable batches and remembered per-account column mappings.
+- **Budgets** — per-category monthly budgets with progress and over/under tracking.
+- **Recurring** — templates that materialize on schedule (with a nightly sweep).
+- **Export / backup / restore** — CSV export and a full additive, idempotent JSON backup/restore.
+- **Multi-currency** — a user-maintained FX rate table anchored to the reporting currency.
+- **Polish-first UI** — pl-PL primary with English, and a class-based dark mode.
+
+## Stack
+
+| Layer     | Technology |
+|-----------|------------|
+| Frontend  | Vite 8 · React 19 · TypeScript (strict) · Tailwind v4 · TanStack Query · React Router 8 · i18next |
+| Backend   | Spring Boot 3.5 · Java 21 · Spring Data JPA · Spring Security (JWT RS256) · Flyway |
+| Database  | PostgreSQL 16 — money stored as `BIGINT` minor units |
 
 ## Layout
 
 ```
-backend/   Spring Boot 3.5 (Java 21, Gradle Kotlin DSL) — REST API at /api/v1
-frontend/  React SPA (added in the frontend round)
-reference/ the local-first Dexie prototype (domain logic is ported from here)
+backend/    Spring Boot REST API at /api/v1  (see docs/architecture.md)
+frontend/   React SPA                        (see frontend/README.md)
+docs/       Architecture, development, deployment, and API reference
+reference/  The original local-first Dexie prototype (domain logic was ported from here)
 ```
 
-## Run the backend locally
+## Quick start (whole stack)
 
-Requires Docker. JDK 21 is provided via the Gradle toolchain.
+Requires Docker. The app runs same-origin behind nginx, so the refresh cookie stays first-party.
 
 ```bash
-# 1. Start Postgres
+docker compose up --build
+```
+
+- App (SPA + API proxy): <http://localhost:5173>
+- Register a user in the UI, or via the API below.
+
+## Run locally for development
+
+Three processes: Postgres, the backend, and the Vite dev server.
+
+```bash
+# 1. Postgres
 docker compose up -d db
 
-# 2. Build + test (Spotless, unit/slice/Testcontainers integration, Flyway, coverage gate)
-cd backend && ./gradlew build
+# 2. Backend — http://localhost:8080  (JDK 21 via the Gradle toolchain)
+cd backend && ./gradlew bootRun
 
-# 3. Run the API (http://localhost:8080)
-./gradlew bootRun
+# 3. Frontend — http://localhost:5173  (proxies /api → :8080)
+cd frontend && npm install && npm run dev
 ```
 
-- Swagger UI: <http://localhost:8080/swagger-ui.html>
-- OpenAPI JSON: <http://localhost:8080/v3/api-docs>
+- Swagger UI: <http://localhost:8080/swagger-ui.html> · OpenAPI JSON: <http://localhost:8080/v3/api-docs>
 - Health: <http://localhost:8080/actuator/health>
 
-### Whole stack
+See **[docs/development.md](docs/development.md)** for the full dev loop, testing, and conventions.
+
+## API smoke test
 
 ```bash
-docker compose up --build   # db + backend (frontend added later)
-```
-
-## Acceptance smoke test (Phase 1)
-
-```bash
-# Register (refresh token is set as an HttpOnly cookie; access token is in the body)
+# Register (refresh token is an HttpOnly cookie; the access token is in the body)
 curl -i -c cookies.txt -X POST localhost:8080/api/v1/auth/register \
   -H 'Content-Type: application/json' \
   -d '{"email":"a@example.com","password":"password123"}'
 
-# Call a protected endpoint with the access token
-curl -s localhost:8080/api/v1/auth/me -H "Authorization: Bearer <ACCESS_TOKEN>"
-
-# Refresh using the cookie, then read/update settings
-curl -i -b cookies.txt -X POST localhost:8080/api/v1/auth/refresh
-```
-
-## Core loop (Phase 2)
-
-```bash
-AUTH='Authorization: Bearer <ACCESS_TOKEN>'
-
-# Create an account (money is integer minor units; 1000.00 PLN starting balance)
-curl -s -X POST localhost:8080/api/v1/accounts -H "$AUTH" -H 'Content-Type: application/json' \
+# Create an account (money is integer minor units — 1000.00 PLN = 100000)
+curl -s -X POST localhost:8080/api/v1/accounts -H 'Authorization: Bearer <ACCESS_TOKEN>' \
+  -H 'Content-Type: application/json' \
   -d '{"name":"Checking","type":"checking","currency":"PLN","trackBalance":true,"startingBalanceMinor":100000}'
 
-# Add transactions (rateToBase is locked at entry; PLN resolves to 1, foreign currencies require a rate)
-curl -s -X POST localhost:8080/api/v1/transactions -H "$AUTH" -H 'Content-Type: application/json' \
-  -d '{"date":"2024-06-01","amountMinor":250000,"type":"income","accountId":1,"description":"Salary"}'
-
 # See where the money goes (income / expense / net, in base currency)
-curl -s "localhost:8080/api/v1/reports/summary?from=2024-06-01&to=2024-06-30" -H "$AUTH"
+curl -s "localhost:8080/api/v1/reports/summary?from=2024-06-01&to=2024-06-30" \
+  -H 'Authorization: Bearer <ACCESS_TOKEN>'
 ```
 
-## Key invariants (from the contract)
+Full endpoint reference: **[docs/api.md](docs/api.md)**.
 
-- **Money is integer minor units** (`long` / `BIGINT`); division by 100 only at the display edge.
-- **Every query is user-scoped**; cross-user access returns `404`. Proven by isolation tests.
-- **Errors are RFC 9457 problem+json**; validation failures are `422` with field errors.
+## Key invariants
+
+- **Money is integer minor units** (`long` / `BIGINT`); divide by 100 only at the display edge.
+- **Every query is user-scoped**; cross-user access returns `404` (proven by isolation tests).
+- **FX rates are locked at entry**; aggregations use the stored base value, never live FX.
+- **Errors are RFC 9457 `problem+json`**; validation failures are `422` with field details.
 - **Migrations are Flyway, forward-only**; never edit a shipped migration.
+
+More: **[docs/architecture.md](docs/architecture.md)**.
+
+## Documentation
+
+- [docs/architecture.md](docs/architecture.md) — stack, layering, domain rules, module map, schema
+- [docs/development.md](docs/development.md) — local dev loop, testing, conventions, CI
+- [docs/deployment.md](docs/deployment.md) — Docker / nginx same-origin deployment and configuration
+- [docs/api.md](docs/api.md) — REST endpoint reference
+- [frontend/README.md](frontend/README.md) — frontend stack, scripts, and structure
