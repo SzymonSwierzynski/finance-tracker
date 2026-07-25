@@ -8,6 +8,7 @@ import type {
   Comparison,
   ComparisonMode,
   Summary,
+  TrendComparison,
   TrendResponse,
 } from '@/api'
 
@@ -21,6 +22,8 @@ export const reportKeys = {
     ['reports', 'cashflow', { from, to, interval }] as const,
   categoryTrend: (from: string, to: string, interval: string, kind: CategoryKind) =>
     ['reports', 'category-trend', { from, to, interval, kind }] as const,
+  trendComparison: (from: string, to: string) =>
+    ['reports', 'trend-comparison', { from, to }] as const,
 }
 
 export function useSummary(from: string, to: string) {
@@ -36,6 +39,15 @@ export function useComparison(from: string, to: string, mode: ComparisonMode, en
     queryKey: ['reports', 'comparison', { from, to, mode }] as const,
     queryFn: () =>
       api.get<Comparison>('/api/v1/reports/comparison', { params: { from, to, mode } }),
+  })
+}
+
+export function useTrendComparison(from: string, to: string, enabled = true) {
+  return useQuery({
+    enabled,
+    queryKey: reportKeys.trendComparison(from, to),
+    queryFn: () =>
+      api.get<TrendComparison>('/api/v1/reports/trend-comparison', { params: { from, to } }),
   })
 }
 

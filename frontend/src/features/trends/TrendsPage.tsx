@@ -18,7 +18,9 @@ import { formatDate, presetRange, todayIso } from '@/lib/date'
 import type { DateRange, PeriodPresetId } from '@/lib/date'
 import { toMajorNumber } from '@/lib/money'
 import { localeForLanguage } from '@/lib/i18n'
-import { useCashflow, useCategoryTrend } from '@/features/reports/hooks'
+import { useCashflow, useCategoryTrend, useTrendComparison } from '@/features/reports/hooks'
+import { ComparisonStrip } from '@/features/trends/ComparisonStrip'
+import { CategoryMovers } from '@/features/trends/CategoryMovers'
 import { useTheme, chartColors } from '@/lib/theme'
 
 const PRESETS: PeriodPresetId[] = ['thisMonth', 'lastMonth', 'thisYear', 'custom']
@@ -42,6 +44,7 @@ export function TrendsPage() {
   const [range, setRange] = useState<DateRange>(() => presetRange('thisYear'))
   const [grouping, setGrouping] = useState<TrendInterval>('month')
   const [view, setView] = useState<(typeof VIEWS)[number]>('total')
+  const [compare, setCompare] = useState(false)
 
   const onPreset = (p: PeriodPresetId) => {
     setPreset(p)
@@ -51,6 +54,7 @@ export function TrendsPage() {
   // Only the active view fetches; both share range + grouping so switching is instant once cached.
   const cashflow = useCashflow(range.from, range.to, grouping, view === 'total')
   const catTrend = useCategoryTrend(range.from, range.to, grouping, 'expense', view === 'category')
+  const cmp = useTrendComparison(range.from, range.to, compare)
   const active = view === 'total' ? cashflow : catTrend
   const currency =
     (view === 'total' ? cashflow.data?.currency : catTrend.data?.currency) ?? 'PLN'
@@ -128,7 +132,29 @@ export function TrendsPage() {
             />
           </div>
         )}
+        <div className="ml-auto">
+          <Button
+            variant={compare ? 'primary' : 'secondary'}
+            size="sm"
+            onClick={() => setCompare((c) => !c)}
+            aria-pressed={compare}
+          >
+            {t('trends.compare')}
+          </Button>
+        </div>
       </div>
+
+      {compare && cmp.isLoading && (
+        <Card className="mb-6 p-5">
+          <Skeleton className="h-20 w-full" />
+        </Card>
+      )}
+      {compare && cmp.isError && (
+        <Card className="mb-6 p-5">
+          <p className="text-sm text-negative">{t('errors.loadFailed')}</p>
+        </Card>
+      )}
+      {compare && cmp.data && <ComparisonStrip data={cmp.data} currency={cmp.data.currency} />}
 
       {active.isLoading ? (
         <Card className="p-6">
@@ -176,6 +202,8 @@ export function TrendsPage() {
           </div>
         </Card>
       )}
+
+      {compare && cmp.data && <CategoryMovers data={cmp.data} currency={cmp.data.currency} />}
     </>
   )
 }
