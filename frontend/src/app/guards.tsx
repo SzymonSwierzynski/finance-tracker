@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Navigate, Outlet } from 'react-router-dom'
+import { Navigate, Outlet } from 'react-router'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { Spinner } from '@/components/primitives'
 import { AppLayout } from './AppLayout'

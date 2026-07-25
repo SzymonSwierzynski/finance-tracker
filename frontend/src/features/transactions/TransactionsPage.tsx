@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router'
 import type { Transaction, TransactionType } from '@/api'
 import { TRANSACTION_TYPES } from '@/api'
 import { Badge, Button, Card, CenteredState, PageHeader, Select, Input, Skeleton } from '@/components/primitives'
