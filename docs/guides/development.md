@@ -68,7 +68,7 @@ are one-off: create a temp spec, run it, delete it — don't commit new specs.
 - **Frontend:** components → hooks → feature `api.ts` → `src/api/client.ts`. Forms use React Hook
   Form + Zod. Regenerate API types with `npm run gen:api` (backend running) — never hand-edit
   `src/api/types.gen.ts`.
-- See [architecture.md](architecture.md) for the full domain rules and invariants.
+- See [architecture.md](../reference/architecture.md) for the full domain rules and invariants.
 
 ## Regenerating the frontend lockfile (important)
 

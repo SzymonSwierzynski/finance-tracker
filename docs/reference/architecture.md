@@ -13,7 +13,7 @@ PostgreSQL 16  (money = BIGINT minor units)
 - Base API path: `/api/v1`. OpenAPI at `/v3/api-docs`, Swagger UI at `/swagger-ui.html`.
 - Java 21 (the Gradle toolchain is pinned to 21).
 - In production the SPA and API are served **same-origin** behind nginx so the refresh cookie stays
-  first-party — see [deployment.md](deployment.md).
+  first-party — see [deployment.md](../guides/deployment.md).
 
 ## Layering (strict)
 

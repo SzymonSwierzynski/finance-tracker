@@ -36,7 +36,7 @@ a Spring Boot REST API on PostgreSQL.
 ## Layout
 
 ```
-backend/    Spring Boot REST API at /api/v1  (see docs/architecture.md)
+backend/    Spring Boot REST API at /api/v1  (see docs/reference/architecture.md)
 frontend/   React SPA                        (see frontend/README.md)
 docs/       Architecture, development, deployment, and API reference
 reference/  The original local-first Dexie prototype (domain logic was ported from here)
@@ -71,7 +71,7 @@ cd frontend && npm install && npm run dev
 - Swagger UI: <http://localhost:8080/swagger-ui.html> · OpenAPI JSON: <http://localhost:8080/v3/api-docs>
 - Health: <http://localhost:8080/actuator/health>
 
-See **[docs/development.md](docs/development.md)** for the full dev loop, testing, and conventions.
+See **[docs/guides/development.md](docs/guides/development.md)** for the full dev loop, testing, and conventions.
 
 ## API smoke test
 
@@ -91,7 +91,7 @@ curl -s "localhost:8080/api/v1/reports/summary?from=2024-06-01&to=2024-06-30" \
   -H 'Authorization: Bearer <ACCESS_TOKEN>'
 ```
 
-Full endpoint reference: **[docs/api.md](docs/api.md)**.
+Full endpoint reference: **[docs/reference/api.md](docs/reference/api.md)**.
 
 ## Key invariants
 
@@ -101,12 +101,12 @@ Full endpoint reference: **[docs/api.md](docs/api.md)**.
 - **Errors are RFC 9457 `problem+json`**; validation failures are `422` with field details.
 - **Migrations are Flyway, forward-only**; never edit a shipped migration.
 
-More: **[docs/architecture.md](docs/architecture.md)**.
+More: **[docs/reference/architecture.md](docs/reference/architecture.md)**.
 
 ## Documentation
 
-- [docs/architecture.md](docs/architecture.md) — stack, layering, domain rules, module map, schema
-- [docs/development.md](docs/development.md) — local dev loop, testing, conventions, CI
-- [docs/deployment.md](docs/deployment.md) — Docker / nginx same-origin deployment and configuration
-- [docs/api.md](docs/api.md) — REST endpoint reference
+- [docs/reference/architecture.md](docs/reference/architecture.md) — stack, layering, domain rules, module map, schema
+- [docs/guides/development.md](docs/guides/development.md) — local dev loop, testing, conventions, CI
+- [docs/guides/deployment.md](docs/guides/deployment.md) — Docker / nginx same-origin deployment and configuration
+- [docs/reference/api.md](docs/reference/api.md) — REST endpoint reference
 - [frontend/README.md](frontend/README.md) — frontend stack, scripts, and structure

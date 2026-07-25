@@ -2,7 +2,7 @@
 
 Vite + React 19 + TypeScript (strict) single-page app for the Finance Tracker. Talks to the Spring
 Boot API at `/api/v1`. See the root [README](../README.md) for the whole stack and
-[docs/architecture.md](../docs/architecture.md) for the system design.
+[docs/reference/architecture.md](../docs/reference/architecture.md) for the system design.
 
 ## Stack
 
@@ -25,7 +25,7 @@ npm run preview    # serve the production build locally
 npm run lint       # eslint .
 npm test           # vitest run (unit)
 npm run test:watch # vitest watch
-npm run e2e         # Playwright E2E (needs the real stack up — see docs/development.md)
+npm run e2e         # Playwright E2E (needs the real stack up — see docs/guides/development.md)
 npm run gen:api    # regenerate src/api/types.gen.ts from the running backend's OpenAPI
 ```
 
@@ -59,4 +59,4 @@ src/
 
 `package-lock.json` must stay **cross-platform complete**. Do not regenerate it with a bare
 `npm install` on macOS — that prunes Linux-only optional deps (`@emnapi/*`) and breaks `npm ci` on
-Linux CI. Regenerate inside Linux instead (see [docs/development.md](../docs/development.md)).
+Linux CI. Regenerate inside Linux instead (see [docs/guides/development.md](../docs/guides/development.md)).
