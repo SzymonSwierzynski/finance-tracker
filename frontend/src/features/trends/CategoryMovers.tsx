@@ -20,8 +20,7 @@ export function CategoryMovers({ data, currency }: { data: TrendComparison; curr
   const signed = (minor: number) =>
     `${minor > 0 ? '+' : minor < 0 ? '−' : ''}${formatMoney(Math.abs(minor), currency)}`
 
-  // movers.length === 0 is guarded above; the non-null assertion is safe here
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  // movers.length === 0 is guarded above, so index 0 is present.
   const top = data.movers[0]!
   const highlight = t('trends.highlight', { name: top.name, change: signed(top.deltaMinor) })
 
