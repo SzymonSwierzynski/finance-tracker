@@ -14,10 +14,12 @@ import com.financetracker.common.error.UnprocessableEntityException;
 import com.financetracker.settings.SettingsService;
 import com.financetracker.transaction.TransactionRepository;
 import com.financetracker.transaction.TransactionRepository.CategorySumRow;
+import com.financetracker.transaction.TransactionRepository.PeriodCategorySumRow;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -63,6 +65,7 @@ public class BudgetService {
     budget.setUserId(userId);
     budget.setCategoryId(request.categoryId());
     budget.setAmountMinor(request.amountMinor());
+    budget.setRollover(request.rollover());
     return toResponse(budgetRepository.save(budget));
   }
 
@@ -71,6 +74,7 @@ public class BudgetService {
     Budget budget = requireOwned(userId, id);
     requireCurrentVersion(budget, request.version());
     budget.setAmountMinor(request.amountMinor());
+    budget.setRollover(request.rollover());
     return toResponse(budgetRepository.saveAndFlush(budget));
   }
 
@@ -90,14 +94,67 @@ public class BudgetService {
         categoryRepository.findByUserIdOrderByNameAsc(userId).stream()
             .collect(Collectors.toMap(Category::getId, Function.identity()));
     Map<Long, Long> spentByCategory = rollUpExpenses(userId, ym, byId);
+    Map<Long, Map<YearMonth, Long>> historyByCategory = historicalSpend(userId, ym, budgets, byId);
 
     List<BudgetProgress> items =
         budgets.stream()
-            .map(b -> toProgress(b, byId.get(b.getCategoryId()), spentByCategory))
+            .map(
+                b ->
+                    toProgress(
+                        b, byId.get(b.getCategoryId()), spentByCategory, historyByCategory, ym))
             .sorted(
                 Comparator.comparing(BudgetProgress::categoryName, String.CASE_INSENSITIVE_ORDER))
             .toList();
     return new BudgetsResponse(ym.toString(), settingsService.reportingCurrency(userId), items);
+  }
+
+  /**
+   * Per-(month, category) base-currency expense spend for every month a rollover budget must fold
+   * over — i.e. from the earliest rollover-budget creation month up to the month before {@code ym}.
+   * Empty when there are no rollover budgets, so strict budgets pay nothing extra. Subcategory
+   * spend is folded into the parent, mirroring {@link #rollUpExpenses}. Keyed category id → (month
+   * → base).
+   */
+  private Map<Long, Map<YearMonth, Long>> historicalSpend(
+      long userId, YearMonth ym, List<Budget> budgets, Map<Long, Category> byId) {
+    YearMonth earliest =
+        budgets.stream()
+            .filter(Budget::isRollover)
+            .map(this::creationMonth)
+            .min(Comparator.naturalOrder())
+            .orElse(null);
+    Map<Long, Map<YearMonth, Long>> history = new HashMap<>();
+    if (earliest == null || !earliest.isBefore(ym)) {
+      return history; // no rollover budgets, or nothing precedes the requested month
+    }
+    for (PeriodCategorySumRow row :
+        transactionRepository.sumByPeriodAndCategory(
+            userId,
+            earliest.atDay(1),
+            ym.minusMonths(1).atEndOfMonth(),
+            "YYYY-MM",
+            CategoryKind.EXPENSE.value())) {
+      Category cat = row.getCategoryId() == null ? null : byId.get(row.getCategoryId());
+      if (cat == null) {
+        continue;
+      }
+      YearMonth m = YearMonth.parse(row.getPeriod());
+      long base = baseMinorOf(row.getBaseMinor());
+      accrue(history, cat.getId(), m, base);
+      if (cat.getParentId() != null) {
+        accrue(history, cat.getParentId(), m, base);
+      }
+    }
+    return history;
+  }
+
+  private static void accrue(
+      Map<Long, Map<YearMonth, Long>> history, long categoryId, YearMonth month, long base) {
+    history.computeIfAbsent(categoryId, k -> new HashMap<>()).merge(month, base, Long::sum);
+  }
+
+  private YearMonth creationMonth(Budget b) {
+    return YearMonth.from(b.getCreatedAt().atZone(ZoneOffset.UTC));
   }
 
   /**
@@ -123,8 +180,22 @@ public class BudgetService {
     return spent;
   }
 
-  private BudgetProgress toProgress(Budget b, Category category, Map<Long, Long> spentByCategory) {
+  private BudgetProgress toProgress(
+      Budget b,
+      Category category,
+      Map<Long, Long> spentByCategory,
+      Map<Long, Map<YearMonth, Long>> historyByCategory,
+      YearMonth ym) {
     long spent = spentByCategory.getOrDefault(b.getCategoryId(), 0L);
+    long carriedIn =
+        b.isRollover()
+            ? RolloverCalculator.carriedIn(
+                creationMonth(b),
+                ym,
+                b.getAmountMinor(),
+                historyByCategory.getOrDefault(b.getCategoryId(), Map.of()))
+            : 0L;
+    long available = b.getAmountMinor() + carriedIn;
     return new BudgetProgress(
         b.getId(),
         b.getCategoryId(),
@@ -132,9 +203,11 @@ public class BudgetService {
         category == null ? "" : category.getColor(),
         b.getAmountMinor(),
         spent,
-        b.getAmountMinor() - spent,
-        spent > b.getAmountMinor(),
-        b.getVersion());
+        available - spent,
+        spent > available,
+        b.getVersion(),
+        b.isRollover(),
+        carriedIn);
   }
 
   private void requireExpenseCategory(long userId, long categoryId) {
@@ -175,6 +248,7 @@ public class BudgetService {
   }
 
   private static BudgetResponse toResponse(Budget b) {
-    return new BudgetResponse(b.getId(), b.getCategoryId(), b.getAmountMinor(), b.getVersion());
+    return new BudgetResponse(
+        b.getId(), b.getCategoryId(), b.getAmountMinor(), b.getVersion(), b.isRollover());
   }
 }

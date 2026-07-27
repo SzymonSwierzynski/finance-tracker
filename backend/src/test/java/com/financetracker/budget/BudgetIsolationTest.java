@@ -185,6 +185,57 @@ class BudgetIsolationTest extends AbstractIntegrationTest {
     mockMvc.perform(get("/api/v1/budgets")).andExpect(status().isUnauthorized());
   }
 
+  @Test
+  void persistsAndEchoesTheRolloverFlag() throws Exception {
+    RegisteredUser user = register("budget-rollover-flag@example.com", "password123");
+    clearCategories(user);
+    long food = createCategory(user, "Food", "expense");
+
+    // Explicit rollover=true on create is stored and echoed on the create response…
+    long id =
+        id(
+            mockMvc
+                .perform(
+                    post("/api/v1/budgets")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(user))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                            "{\"categoryId\":"
+                                + food
+                                + ",\"amountMinor\":50000,\"rollover\":true}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.rollover").value(true))
+                .andReturn());
+
+    // …and on the monthly progress list, with carriedInMinor present (0 for now).
+    mockMvc
+        .perform(get("/api/v1/budgets").header(HttpHeaders.AUTHORIZATION, bearer(user)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items[0].rollover").value(true))
+        .andExpect(jsonPath("$.items[0].carriedInMinor").value(0));
+
+    // Omitting rollover defaults to false (a new category so no duplicate-budget conflict).
+    long rent = createCategory(user, "Rent", "expense");
+    mockMvc
+        .perform(
+            post("/api/v1/budgets")
+                .header(HttpHeaders.AUTHORIZATION, bearer(user))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"categoryId\":" + rent + ",\"amountMinor\":100000}"))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.rollover").value(false));
+
+    // Update can toggle rollover off (send the current version).
+    mockMvc
+        .perform(
+            patch("/api/v1/budgets/" + id)
+                .header(HttpHeaders.AUTHORIZATION, bearer(user))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"amountMinor\":50000,\"version\":0,\"rollover\":false}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.rollover").value(false));
+  }
+
   private long createBudget(RegisteredUser user, long categoryId, long amountMinor)
       throws Exception {
     return id(
