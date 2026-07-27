@@ -70,6 +70,7 @@ const resources = {
         new: 'New budget', edit: 'Edit budget', empty: 'No budgets yet — add one to track a category.',
         deleteConfirm: 'Delete this budget?', month: 'Month', category: 'Category', monthlyLimit: 'Monthly limit',
         over: 'Over', left: 'Left', invalidAmount: 'Enter an amount greater than zero.',
+        rollover: 'Roll over unused budget', rolloverHelp: 'Unspent amount carries into next month; a heavier month can draw it down, but it never goes below zero.', rolloverBadge: 'Rollover', carried: 'carried',
       },
       import: {
         title: 'Import', subtitle: 'Import a CSV export from your bank.',
@@ -185,6 +186,7 @@ const resources = {
         new: 'Nowy budżet', edit: 'Edytuj budżet', empty: 'Brak budżetów — dodaj, aby śledzić kategorię.',
         deleteConfirm: 'Usunąć ten budżet?', month: 'Miesiąc', category: 'Kategoria', monthlyLimit: 'Limit miesięczny',
         over: 'Ponad', left: 'Zostało', invalidAmount: 'Podaj kwotę większą od zera.',
+        rollover: 'Przenoś niewykorzystany budżet', rolloverHelp: 'Niewydana kwota przechodzi na kolejny miesiąc; cięższy miesiąc może ją uszczuplić, ale nie zejdzie poniżej zera.', rolloverBadge: 'Przeniesienie', carried: 'przeniesione',
       },
       import: {
         title: 'Import', subtitle: 'Zaimportuj plik CSV z banku.',

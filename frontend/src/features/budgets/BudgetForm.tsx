@@ -9,7 +9,7 @@ import { useToast } from '@/components/Toast'
 import { useCategories } from '@/features/categories/hooks'
 import { useCreateBudget, useUpdateBudget } from './hooks'
 
-const schema = z.object({ categoryId: z.string(), amount: z.string().min(1) })
+const schema = z.object({ categoryId: z.string(), amount: z.string().min(1), rollover: z.boolean() })
 type FormValues = z.infer<typeof schema>
 
 export function BudgetForm({
@@ -37,6 +37,7 @@ export function BudgetForm({
     values: {
       categoryId: edit ? String(edit.categoryId) : '',
       amount: edit ? (edit.amountMinor / 100).toFixed(2) : '',
+      rollover: edit ? edit.rollover : false,
     },
   })
 
@@ -48,13 +49,20 @@ export function BudgetForm({
     }
     try {
       if (edit) {
-        await update.mutateAsync({ id: edit.id, body: { amountMinor, version: edit.version } })
+        await update.mutateAsync({
+          id: edit.id,
+          body: { amountMinor, version: edit.version, rollover: values.rollover },
+        })
       } else {
         if (!values.categoryId) {
           toast.error(t('errors.required'))
           return
         }
-        await create.mutateAsync({ categoryId: Number(values.categoryId), amountMinor })
+        await create.mutateAsync({
+          categoryId: Number(values.categoryId),
+          amountMinor,
+          rollover: values.rollover,
+        })
       }
       toast.success('✓')
       onClose()
@@ -107,6 +115,17 @@ export function BudgetForm({
         >
           <Input id="bud-amount" inputMode="decimal" placeholder="0.00" {...register('amount')} />
         </Field>
+        <label className="flex items-start gap-2 text-sm text-fg">
+          <input
+            type="checkbox"
+            className="mt-0.5 h-4 w-4 rounded border-border"
+            {...register('rollover')}
+          />
+          <span>
+            {t('budgets.rollover')}
+            <span className="mt-0.5 block text-xs text-fg-soft">{t('budgets.rolloverHelp')}</span>
+          </span>
+        </label>
       </form>
     </Modal>
   )

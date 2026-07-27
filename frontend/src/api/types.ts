@@ -375,11 +375,13 @@ export const UNCATEGORIZED_COLOR = '#94a3b8'
 export interface CreateBudgetRequest {
   categoryId: number
   amountMinor: number
+  rollover: boolean
 }
 
 export interface UpdateBudgetRequest {
   amountMinor: number
   version: number
+  rollover: boolean
 }
 
 export interface BudgetResponse {
@@ -387,6 +389,7 @@ export interface BudgetResponse {
   categoryId: number
   amountMinor: number
   version: number
+  rollover: boolean
 }
 
 /** One budget's progress for a month, in base-currency minor units. */
@@ -400,6 +403,8 @@ export interface BudgetProgress {
   remainingMinor: number
   over: boolean
   version: number
+  rollover: boolean
+  carriedInMinor: number
 }
 
 export interface Budgets {
