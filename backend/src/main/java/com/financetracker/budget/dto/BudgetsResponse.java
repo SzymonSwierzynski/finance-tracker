@@ -22,5 +22,7 @@ public record BudgetsResponse(String month, String currency, List<BudgetProgress
       long spentMinor,
       long remainingMinor,
       boolean over,
-      long version) {}
+      long version,
+      boolean rollover,
+      long carriedInMinor) {}
 }

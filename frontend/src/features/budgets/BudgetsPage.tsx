@@ -72,8 +72,10 @@ export function BudgetsPage() {
       ) : (
         <div className="space-y-3">
           {items.map((b) => {
+            const carried = b.rollover ? b.carriedInMinor : 0
+            const available = b.amountMinor + carried
             const pct =
-              b.amountMinor > 0 ? Math.min(100, Math.round((b.spentMinor / b.amountMinor) * 100)) : 0
+              available > 0 ? Math.min(100, Math.round((b.spentMinor / available) * 100)) : 0
             return (
               <Card key={b.id} className="p-4">
                 <div className="flex items-center justify-between gap-3">
@@ -85,6 +87,14 @@ export function BudgetsPage() {
                     <span className="truncate text-sm font-medium text-fg">
                       {b.categoryName}
                     </span>
+                    {b.rollover && (
+                      <span
+                        className="shrink-0 rounded-full bg-surface-2 px-2 py-0.5 text-[10px] font-medium text-fg-muted"
+                        title={t('budgets.rolloverHelp')}
+                      >
+                        {t('budgets.rolloverBadge')}
+                      </span>
+                    )}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     <Button variant="ghost" size="sm" onClick={() => openEdit(b)}>
@@ -122,7 +132,12 @@ export function BudgetsPage() {
                 <div className="mt-2 flex items-center justify-between text-xs text-fg-soft">
                   <span>
                     <Money minor={b.spentMinor} currency={currency} /> /{' '}
-                    <Money minor={b.amountMinor} currency={currency} />
+                    <Money minor={available} currency={currency} />
+                    {carried > 0 && (
+                      <span className="ml-1 text-positive">
+                        (+<Money minor={carried} currency={currency} /> {t('budgets.carried')})
+                      </span>
+                    )}
                   </span>
                   <span className={b.over ? 'font-medium text-negative' : 'text-fg-muted'}>
                     {b.over ? t('budgets.over') : t('budgets.left')}:{' '}

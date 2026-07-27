@@ -23,4 +23,7 @@ public class Budget extends UserOwnedEntity {
 
   @Column(name = "amount_minor", nullable = false)
   private long amountMinor;
+
+  @Column(name = "rollover", nullable = false)
+  private boolean rollover;
 }
