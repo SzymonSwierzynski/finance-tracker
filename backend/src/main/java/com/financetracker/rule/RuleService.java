@@ -102,7 +102,8 @@ public class RuleService {
             .map(r -> new MatchableRule(r.getPattern(), r.getCategoryId(), r.getPriority()))
             .toList();
     List<Transaction> uncategorized =
-        transactionRepository.findByUserIdAndCategoryIdIsNullAndTypeIn(userId, CATEGORIZABLE);
+        transactionRepository.findByUserIdAndDeletedAtIsNullAndCategoryIdIsNullAndTypeIn(
+            userId, CATEGORIZABLE);
     if (rules.isEmpty() || uncategorized.isEmpty()) {
       return new ApplyRulesResponse(uncategorized.size(), 0);
     }

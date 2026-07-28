@@ -22,6 +22,7 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.persistence.criteria.Predicate;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -194,6 +195,7 @@ public class TransactionService {
     return (root, query, cb) -> {
       List<Predicate> predicates = new ArrayList<>();
       predicates.add(cb.equal(root.get("userId"), userId));
+      predicates.add(cb.isNull(root.get("deletedAt")));
       if (from != null) {
         predicates.add(cb.greaterThanOrEqualTo(root.get("date"), from));
       }
@@ -263,8 +265,39 @@ public class TransactionService {
 
   @Transactional
   public void delete(long userId, long id) {
-    Transaction tx = requireOwned(userId, id);
+    Transaction tx = requireOwned(userId, id); // active only -> deleting a trashed id is a 404
+    tx.setDeletedAt(Instant.now());
+    transactionRepository.saveAndFlush(tx);
+  }
+
+  @Transactional
+  public TransactionResponse restore(long userId, long id) {
+    Transaction tx =
+        transactionRepository
+            .findByIdAndUserIdAndDeletedAtIsNotNull(id, userId)
+            .orElseThrow(() -> NotFoundException.of("Transaction", id));
+    tx.setDeletedAt(null);
+    return toResponse(transactionRepository.saveAndFlush(tx));
+  }
+
+  @Transactional
+  public void permanentlyDelete(long userId, long id) {
+    Transaction tx =
+        transactionRepository
+            .findByIdAndUserIdAndDeletedAtIsNotNull(id, userId)
+            .orElseThrow(() -> NotFoundException.of("Transaction", id));
     transactionRepository.delete(tx);
+  }
+
+  @Transactional(readOnly = true)
+  public PageResponse<TransactionResponse> listTrash(long userId, int page, int size) {
+    int safeSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+    int safePage = Math.max(page, 0);
+    Page<Transaction> result =
+        transactionRepository.findByUserIdAndDeletedAtIsNotNullOrderByDeletedAtDesc(
+            userId, PageRequest.of(safePage, safeSize));
+    List<TransactionResponse> items = result.getContent().stream().map(this::toResponse).toList();
+    return PageResponse.of(items, result);
   }
 
   private Account requireOwnedAccount(long userId, long accountId) {
@@ -275,7 +308,7 @@ public class TransactionService {
 
   private Transaction requireOwned(long userId, long id) {
     return transactionRepository
-        .findByIdAndUserId(id, userId)
+        .findByIdAndUserIdAndDeletedAtIsNull(id, userId)
         .orElseThrow(() -> NotFoundException.of("Transaction", id));
   }
 

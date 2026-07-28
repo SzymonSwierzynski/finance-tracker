@@ -1,12 +1,16 @@
 package com.financetracker.transaction;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -20,21 +24,34 @@ import org.springframework.data.repository.query.Param;
 public interface TransactionRepository
     extends JpaRepository<Transaction, Long>, JpaSpecificationExecutor<Transaction> {
 
-  Optional<Transaction> findByIdAndUserId(long id, long userId);
+  Optional<Transaction> findByIdAndUserIdAndDeletedAtIsNull(long id, long userId);
 
-  /** All of the user's transactions, oldest first — for data export / backup. */
-  List<Transaction> findByUserIdOrderByDateAscIdAsc(long userId);
+  /** A trashed row (for restore / delete-forever). */
+  Optional<Transaction> findByIdAndUserIdAndDeletedAtIsNotNull(long id, long userId);
 
-  /** How many of the user's transactions reference any of the given categories. */
-  long countByUserIdAndCategoryIdIn(long userId, Collection<Long> categoryIds);
+  /** All of the user's active transactions, oldest first — for data export / backup. */
+  List<Transaction> findByUserIdAndDeletedAtIsNullOrderByDateAscIdAsc(long userId);
 
-  /** The user's uncategorized transactions of the given types (for re-running rules). */
-  List<Transaction> findByUserIdAndCategoryIdIsNullAndTypeIn(
+  /** The user's trashed transactions, most-recently-deleted first. */
+  Page<Transaction> findByUserIdAndDeletedAtIsNotNullOrderByDeletedAtDesc(
+      long userId, Pageable pageable);
+
+  /** How many active transactions reference any of the given categories. */
+  long countByUserIdAndDeletedAtIsNullAndCategoryIdIn(long userId, Collection<Long> categoryIds);
+
+  /** The user's active uncategorized transactions of the given types (for re-running rules). */
+  List<Transaction> findByUserIdAndDeletedAtIsNullAndCategoryIdIsNullAndTypeIn(
       long userId, Collection<TransactionType> types);
+
+  /** Purge trashed rows past the retention cutoff. */
+  @Modifying
+  @Query("DELETE FROM Transaction t WHERE t.deletedAt < :cutoff")
+  int deleteByDeletedAtBefore(@Param("cutoff") Instant cutoff);
 
   /** Dedupe hashes already present for an account, for skipping duplicates on CSV import. */
   @Query(
-      "SELECT t.dedupeHash FROM Transaction t WHERE t.userId = :userId AND t.accountId = :accountId")
+      "SELECT t.dedupeHash FROM Transaction t "
+          + "WHERE t.userId = :userId AND t.accountId = :accountId AND t.deletedAt IS NULL")
   List<String> findDedupeHashesByUserIdAndAccountId(
       @Param("userId") long userId, @Param("accountId") long accountId);
 
@@ -51,6 +68,7 @@ public interface TransactionRepository
           WHERE t.user_id = :userId
             AND t.date BETWEEN :from AND :to
             AND t.type IN ('income', 'expense')
+            AND t.deleted_at IS NULL
           GROUP BY t.type
           """,
       nativeQuery = true)
@@ -76,6 +94,7 @@ public interface TransactionRepository
           FROM transactions t
           WHERE t.user_id = :userId
             AND (t.account_id = :accountId OR t.counter_account_id = :accountId)
+            AND t.deleted_at IS NULL
           """,
       nativeQuery = true)
   long accountActivityMinor(@Param("userId") long userId, @Param("accountId") long accountId);
@@ -94,6 +113,7 @@ public interface TransactionRepository
           WHERE t.user_id = :userId
             AND t.date BETWEEN :from AND :to
             AND t.type = :type
+            AND t.deleted_at IS NULL
           GROUP BY t.category_id
           """,
       nativeQuery = true)
@@ -122,6 +142,7 @@ public interface TransactionRepository
           WHERE t.user_id = :userId
             AND t.date BETWEEN :from AND :to
             AND t.type IN ('income', 'expense')
+            AND t.deleted_at IS NULL
           GROUP BY 1, 2
           """,
       nativeQuery = true)
@@ -146,6 +167,7 @@ public interface TransactionRepository
           WHERE t.user_id = :userId
             AND t.date BETWEEN :from AND :to
             AND t.type = :type
+            AND t.deleted_at IS NULL
           GROUP BY 1, 2
           """,
       nativeQuery = true)

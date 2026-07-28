@@ -102,7 +102,8 @@ public class CategoryService {
     for (Category child : categoryRepository.findByParentId(category.getId())) {
       affectedIds.add(child.getId());
     }
-    long uncategorized = transactionRepository.countByUserIdAndCategoryIdIn(userId, affectedIds);
+    long uncategorized =
+        transactionRepository.countByUserIdAndDeletedAtIsNullAndCategoryIdIn(userId, affectedIds);
 
     categoryRepository.delete(category); // cascade -> children; FK SET NULL -> transactions
     return new DeleteCategoryResponse(uncategorized);
