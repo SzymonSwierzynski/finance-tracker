@@ -47,3 +47,26 @@ export function useDeleteTransaction() {
     onSuccess: () => invalidateDerived(qc),
   })
 }
+
+export function useTrash(page = 0, size = 50) {
+  return useQuery({
+    queryKey: ['transactions', 'trash', page, size] as const,
+    queryFn: () => transactionsApi.trash(page, size),
+  })
+}
+
+export function useRestoreTransaction() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => transactionsApi.restore(id),
+    onSuccess: () => invalidateDerived(qc),
+  })
+}
+
+export function usePermanentlyDeleteTransaction() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => transactionsApi.permanent(id),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['transactions', 'trash'] }),
+  })
+}

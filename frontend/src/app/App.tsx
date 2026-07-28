@@ -4,6 +4,7 @@ import { RegisterPage } from '@/features/auth/RegisterPage'
 import { DashboardPage } from '@/features/dashboard/DashboardPage'
 import { AccountsPage } from '@/features/accounts/AccountsPage'
 import { TransactionsPage } from '@/features/transactions/TransactionsPage'
+import { TrashPage } from '@/features/transactions/TrashPage'
 import { CategoriesPage } from '@/features/categories/CategoriesPage'
 import { BreakdownPage } from '@/features/breakdown/BreakdownPage'
 import { TrendsPage } from '@/features/trends/TrendsPage'
@@ -37,6 +38,7 @@ export function App() {
         <Route path="/" element={<DashboardPage />} />
         <Route path="/accounts" element={<AccountsPage />} />
         <Route path="/transactions" element={<TransactionsPage />} />
+        <Route path="/transactions/trash" element={<TrashPage />} />
         <Route path="/breakdown" element={<BreakdownPage />} />
         <Route path="/trends" element={<TrendsPage />} />
         <Route path="/categories" element={<CategoriesPage />} />

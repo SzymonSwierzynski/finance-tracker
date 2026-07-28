@@ -42,6 +42,7 @@ const resources = {
         rate: 'Rate to base', baseValue: 'Base value', empty: 'No transactions match these filters.',
         expense: 'Expense', income: 'Income', transfer: 'Transfer', filters: 'Filters', category: 'Category', search: 'Search description…',
         deleteConfirm: 'Delete this transaction?', from: 'From', to: 'To', rateHint: 'Leave blank to use the rate from Settings. Whatever is used gets locked onto this transaction.',
+        deleted: 'Transaction deleted', undo: 'Undo', restored: 'Transaction restored', trash: 'Trash', trashTitle: 'Deleted transactions', trashEmpty: 'Trash is empty.', restore: 'Restore', deleteForever: 'Delete forever', deleteForeverConfirm: 'Permanently delete this transaction? This cannot be undone.',
       },
       categories: {
         title: 'Categories', new: 'New category', name: 'Name', kind: 'Kind', color: 'Color',
@@ -158,6 +159,7 @@ const resources = {
         rate: 'Kurs do bazy', baseValue: 'Wartość bazowa', empty: 'Brak transakcji dla tych filtrów.',
         expense: 'Wydatek', income: 'Przychód', transfer: 'Przelew', filters: 'Filtry', category: 'Kategoria', search: 'Szukaj w opisie…',
         deleteConfirm: 'Usunąć tę transakcję?', from: 'Od', to: 'Do', rateHint: 'Zostaw puste, aby użyć kursu z Ustawień. Użyty kurs zostanie zapisany w tej transakcji.',
+        deleted: 'Usunięto transakcję', undo: 'Cofnij', restored: 'Przywrócono transakcję', trash: 'Kosz', trashTitle: 'Usunięte transakcje', trashEmpty: 'Kosz jest pusty.', restore: 'Przywróć', deleteForever: 'Usuń trwale', deleteForeverConfirm: 'Trwale usunąć tę transakcję? Tej operacji nie można cofnąć.',
       },
       categories: {
         title: 'Kategorie', new: 'Nowa kategoria', name: 'Nazwa', kind: 'Rodzaj', color: 'Kolor',
