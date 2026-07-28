@@ -1,5 +1,6 @@
 package com.financetracker.importing;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.financetracker.account.Account;
 import com.financetracker.account.AccountRepository;
 import com.financetracker.category.Category;
@@ -8,6 +9,8 @@ import com.financetracker.category.CategoryRepository;
 import com.financetracker.common.error.NotFoundException;
 import com.financetracker.common.error.UnprocessableEntityException;
 import com.financetracker.common.hash.DedupeHash;
+import com.financetracker.common.idempotency.Fingerprints;
+import com.financetracker.common.idempotency.IdempotencyService;
 import com.financetracker.fx.RateResolver;
 import com.financetracker.importing.CsvParser.ParsedCsv;
 import com.financetracker.importing.dto.CommitResponse;
@@ -22,6 +25,7 @@ import com.financetracker.transaction.Transaction;
 import com.financetracker.transaction.TransactionRepository;
 import com.financetracker.transaction.TransactionType;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -51,6 +55,8 @@ public class ImportService {
   private final RuleRepository ruleRepository;
   private final CategoryRepository categoryRepository;
   private final RateResolver rateResolver;
+  private final IdempotencyService idempotencyService;
+  private final ObjectMapper objectMapper;
 
   public ImportService(
       AccountRepository accountRepository,
@@ -59,7 +65,9 @@ public class ImportService {
       ImportProfileRepository importProfileRepository,
       RuleRepository ruleRepository,
       CategoryRepository categoryRepository,
-      RateResolver rateResolver) {
+      RateResolver rateResolver,
+      IdempotencyService idempotencyService,
+      ObjectMapper objectMapper) {
     this.accountRepository = accountRepository;
     this.transactionRepository = transactionRepository;
     this.importBatchRepository = importBatchRepository;
@@ -67,6 +75,8 @@ public class ImportService {
     this.ruleRepository = ruleRepository;
     this.categoryRepository = categoryRepository;
     this.rateResolver = rateResolver;
+    this.idempotencyService = idempotencyService;
+    this.objectMapper = objectMapper;
   }
 
   @Transactional(readOnly = true)
@@ -118,6 +128,25 @@ public class ImportService {
 
   @Transactional
   public CommitResponse commit(
+      long userId,
+      long accountId,
+      String fileName,
+      byte[] file,
+      ImportMapping mapping,
+      String idempotencyKey) {
+    String fingerprint =
+        Fingerprints.of(
+            objectMapper, mapping, Long.toString(accountId).getBytes(StandardCharsets.UTF_8), file);
+    return idempotencyService.execute(
+        userId,
+        "import-commit",
+        idempotencyKey,
+        fingerprint,
+        CommitResponse.class,
+        () -> commitInternal(userId, accountId, fileName, file, mapping));
+  }
+
+  private CommitResponse commitInternal(
       long userId, long accountId, String fileName, byte[] file, ImportMapping mapping) {
     Account account = requireOwnedAccount(userId, accountId);
     String currency = account.getCurrency();
