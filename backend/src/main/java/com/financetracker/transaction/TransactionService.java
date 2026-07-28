@@ -1,5 +1,6 @@
 package com.financetracker.transaction;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.financetracker.account.Account;
 import com.financetracker.account.AccountRepository;
 import com.financetracker.category.Category;
@@ -9,6 +10,8 @@ import com.financetracker.common.error.ConflictException;
 import com.financetracker.common.error.NotFoundException;
 import com.financetracker.common.error.UnprocessableEntityException;
 import com.financetracker.common.hash.DedupeHash;
+import com.financetracker.common.idempotency.Fingerprints;
+import com.financetracker.common.idempotency.IdempotencyService;
 import com.financetracker.common.money.MoneyUtil;
 import com.financetracker.common.web.PageResponse;
 import com.financetracker.fx.RateResolver;
@@ -48,17 +51,23 @@ public class TransactionService {
   private final CategoryRepository categoryRepository;
   private final RateResolver rateResolver;
   private final Counter transactionsCreated;
+  private final IdempotencyService idempotencyService;
+  private final ObjectMapper objectMapper;
 
   public TransactionService(
       TransactionRepository transactionRepository,
       AccountRepository accountRepository,
       CategoryRepository categoryRepository,
       RateResolver rateResolver,
-      MeterRegistry meterRegistry) {
+      MeterRegistry meterRegistry,
+      IdempotencyService idempotencyService,
+      ObjectMapper objectMapper) {
     this.transactionRepository = transactionRepository;
     this.accountRepository = accountRepository;
     this.categoryRepository = categoryRepository;
     this.rateResolver = rateResolver;
+    this.idempotencyService = idempotencyService;
+    this.objectMapper = objectMapper;
     // "entered" not "created": Prometheus treats a _created suffix as reserved and would drop it.
     this.transactionsCreated =
         Counter.builder("financetracker.transactions.entered")
@@ -67,7 +76,18 @@ public class TransactionService {
   }
 
   @Transactional
-  public TransactionResponse create(long userId, CreateTransactionRequest request) {
+  public TransactionResponse create(
+      long userId, CreateTransactionRequest request, String idempotencyKey) {
+    return idempotencyService.execute(
+        userId,
+        "transaction",
+        idempotencyKey,
+        Fingerprints.of(objectMapper, request),
+        TransactionResponse.class,
+        () -> createInternal(userId, request));
+  }
+
+  private TransactionResponse createInternal(long userId, CreateTransactionRequest request) {
     Account account = requireOwnedAccount(userId, request.accountId());
 
     // Currency defaults to the account's; an explicit code is upper-cased.
