@@ -33,7 +33,7 @@ export function useCommitImport() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ accountId, file, mapping }: ImportArgs) =>
-      importApi.commit(accountId, file, mapping),
+      importApi.commit(accountId, file, mapping, crypto.randomUUID()),
     onSuccess: () => invalidateImported(qc),
   })
 }

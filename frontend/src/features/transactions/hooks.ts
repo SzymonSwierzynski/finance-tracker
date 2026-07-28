@@ -25,7 +25,8 @@ export function useTransactions(filters: TransactionFilters) {
 export function useCreateTransaction() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (body: CreateTransactionRequest) => transactionsApi.create(body),
+    mutationFn: (body: CreateTransactionRequest) =>
+      transactionsApi.create(body, crypto.randomUUID()),
     onSuccess: () => invalidateDerived(qc),
   })
 }

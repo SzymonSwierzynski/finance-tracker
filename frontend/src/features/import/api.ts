@@ -14,8 +14,11 @@ export const importApi = {
     api.post<PreviewResponse>('/api/v1/imports/preview', form(file, mapping), {
       params: { accountId },
     }),
-  commit: (accountId: number, file: File, mapping: ImportMapping) =>
-    api.post<CommitResult>('/api/v1/imports/commit', form(file, mapping), { params: { accountId } }),
+  commit: (accountId: number, file: File, mapping: ImportMapping, idempotencyKey?: string) =>
+    api.post<CommitResult>('/api/v1/imports/commit', form(file, mapping), {
+      params: { accountId },
+      idempotencyKey,
+    }),
   batches: () => api.get<ImportBatch[]>('/api/v1/imports/batches'),
   undoBatch: (id: number) => api.delete<void>(`/api/v1/imports/batches/${id}`),
   getProfile: (accountId: number) => api.get<ImportMapping>(`/api/v1/imports/profiles/${accountId}`),

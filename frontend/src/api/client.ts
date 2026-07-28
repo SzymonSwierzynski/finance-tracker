@@ -46,6 +46,8 @@ interface RequestOptions {
   signal?: AbortSignal
   /** Auth endpoints must not trigger the 401 refresh-retry loop. */
   skipAuthRefresh?: boolean
+  /** Sent as the `Idempotency-Key` header; a retry of the same submit reuses it to avoid duplicates. */
+  idempotencyKey?: string
 }
 
 // De-dupe concurrent refreshes: many in-flight requests share one refresh attempt.
@@ -124,6 +126,7 @@ async function request<T>(method: string, path: string, opts: RequestOptions = {
   const send = (): Promise<Response> => {
     const finalHeaders: Record<string, string> = { ...headers }
     if (accessToken) finalHeaders.Authorization = `Bearer ${accessToken}`
+    if (opts.idempotencyKey) finalHeaders['Idempotency-Key'] = opts.idempotencyKey
     return fetch(url, {
       method,
       headers: finalHeaders,

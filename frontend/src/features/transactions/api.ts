@@ -22,7 +22,8 @@ export interface TransactionFilters {
 export const transactionsApi = {
   list: (filters: TransactionFilters) =>
     api.get<Page<Transaction>>('/api/v1/transactions', { params: { ...filters } }),
-  create: (body: CreateTransactionRequest) => api.post<Transaction>('/api/v1/transactions', body),
+  create: (body: CreateTransactionRequest, idempotencyKey?: string) =>
+    api.post<Transaction>('/api/v1/transactions', body, { idempotencyKey }),
   update: (id: number, body: UpdateTransactionRequest) =>
     api.patch<Transaction>(`/api/v1/transactions/${id}`, body),
   remove: (id: number) => api.delete<void>(`/api/v1/transactions/${id}`),

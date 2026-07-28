@@ -107,6 +107,7 @@ describe('<ImportPage /> wizard', () => {
       1,
       expect.any(File),
       expect.objectContaining({ amountMode: 'signed' }),
+      expect.any(String), // per-submit Idempotency-Key
     )
   })
 })
