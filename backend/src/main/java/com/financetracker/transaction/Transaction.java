@@ -5,6 +5,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import lombok.Getter;
 import lombok.Setter;
@@ -58,4 +59,7 @@ public class Transaction extends UserOwnedEntity {
 
   @Column(name = "recurring_id")
   private Long recurringId;
+
+  @Column(name = "deleted_at")
+  private Instant deletedAt;
 }

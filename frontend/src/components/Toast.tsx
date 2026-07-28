@@ -2,16 +2,22 @@ import { createContext, useCallback, useContext, useMemo, useRef, useState } fro
 import type { ReactNode } from 'react'
 
 type ToastTone = 'success' | 'error' | 'info'
+interface ToastAction {
+  label: string
+  onClick: () => void
+}
 interface Toast {
   id: number
   tone: ToastTone
   message: string
+  action?: ToastAction
 }
 
 interface ToastApi {
   success: (message: string) => void
   error: (message: string) => void
   info: (message: string) => void
+  action: (message: string, actionLabel: string, onAction: () => void) => void
 }
 
 const ToastContext = createContext<ToastApi | null>(null)
@@ -23,9 +29,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const remove = useCallback((id: number) => setToasts((t) => t.filter((x) => x.id !== id)), [])
 
   const push = useCallback(
-    (tone: ToastTone, message: string) => {
+    (tone: ToastTone, message: string, action?: ToastAction) => {
       const id = nextId.current++
-      setToasts((t) => [...t, { id, tone, message }])
+      setToasts((t) => [...t, { id, tone, message, action }])
       setTimeout(() => remove(id), 4500)
     },
     [remove],
@@ -36,6 +42,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       success: (m) => push('success', m),
       error: (m) => push('error', m),
       info: (m) => push('info', m),
+      action: (m, label, onAction) => push('info', m, { label, onClick: onAction }),
     }),
     [push],
   )
@@ -56,7 +63,22 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             className={`pointer-events-auto w-full max-w-sm rounded-lg border px-4 py-3 text-sm font-medium shadow-lg ${tones[t.tone]}`}
             onClick={() => remove(t.id)}
           >
-            {t.message}
+            <span className="flex items-center justify-between gap-3">
+              {t.message}
+              {t.action && (
+                <button
+                  type="button"
+                  className="shrink-0 font-semibold underline underline-offset-2"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    t.action?.onClick()
+                    remove(t.id)
+                  }}
+                >
+                  {t.action.label}
+                </button>
+              )}
+            </span>
           </div>
         ))}
       </div>

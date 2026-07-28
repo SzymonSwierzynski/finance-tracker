@@ -27,4 +27,8 @@ export const transactionsApi = {
   update: (id: number, body: UpdateTransactionRequest) =>
     api.patch<Transaction>(`/api/v1/transactions/${id}`, body),
   remove: (id: number) => api.delete<void>(`/api/v1/transactions/${id}`),
+  restore: (id: number) => api.post<Transaction>(`/api/v1/transactions/${id}/restore`),
+  trash: (page = 0, size = 50) =>
+    api.get<Page<Transaction>>('/api/v1/transactions/trash', { params: { page, size } }),
+  permanent: (id: number) => api.delete<void>(`/api/v1/transactions/${id}/permanent`),
 }

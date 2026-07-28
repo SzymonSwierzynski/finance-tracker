@@ -106,7 +106,7 @@ public class ExportService {
     for (Category category : categoryRepository.findByUserIdOrderByNameAsc(userId)) {
       categoriesById.put(category.getId(), category);
     }
-    return transactionRepository.findByUserIdOrderByDateAscIdAsc(userId).stream()
+    return transactionRepository.findByUserIdAndDeletedAtIsNullOrderByDateAscIdAsc(userId).stream()
         .map(
             t -> {
               Category cat =

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useSearchParams } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import type { Transaction, TransactionType } from '@/api'
 import { TRANSACTION_TYPES } from '@/api'
 import { Badge, Button, Card, CenteredState, PageHeader, Select, Input, Skeleton } from '@/components/primitives'
@@ -12,7 +12,7 @@ import { useAccounts } from '@/features/accounts/hooks'
 import { useCategories } from '@/features/categories/hooks'
 import { useSettings } from '@/features/settings/hooks'
 import { TransactionForm } from './TransactionForm'
-import { useDeleteTransaction, useTransactions } from './hooks'
+import { useDeleteTransaction, useRestoreTransaction, useTransactions } from './hooks'
 
 const PAGE_SIZE = 25
 
@@ -75,10 +75,13 @@ export function TransactionsPage() {
   }, [categories])
 
   const remove = useDeleteTransaction()
+  const restore = useRestoreTransaction()
   const onDelete = (tx: Transaction) => {
-    if (!window.confirm(t('transactions.deleteConfirm'))) return
     remove.mutate(tx.id, {
-      onSuccess: () => toast.success('✓'),
+      onSuccess: () =>
+        toast.action(t('transactions.deleted'), t('transactions.undo'), () =>
+          restore.mutate(tx.id, { onError: () => toast.error(t('errors.generic')) }),
+        ),
       onError: () => toast.error(t('errors.generic')),
     })
   }
@@ -91,14 +94,22 @@ export function TransactionsPage() {
       <PageHeader
         title={t('transactions.title')}
         actions={
-          <Button
-            onClick={() => {
-              setEditing(undefined)
-              setFormOpen(true)
-            }}
-          >
-            {t('transactions.new')}
-          </Button>
+          <>
+            <Link
+              to="/transactions/trash"
+              className="rounded-lg px-3 py-2 text-sm font-medium text-fg-muted hover:text-fg"
+            >
+              {t('transactions.trash')}
+            </Link>
+            <Button
+              onClick={() => {
+                setEditing(undefined)
+                setFormOpen(true)
+              }}
+            >
+              {t('transactions.new')}
+            </Button>
+          </>
         }
       />
 

@@ -77,4 +77,23 @@ public class TransactionController {
     transactionService.delete(user.id(), id);
     return ResponseEntity.noContent().build();
   }
+
+  @PostMapping("/{id}/restore")
+  public TransactionResponse restore(@CurrentUser AuthUser user, @PathVariable long id) {
+    return transactionService.restore(user.id(), id);
+  }
+
+  @GetMapping("/trash")
+  public PageResponse<TransactionResponse> trash(
+      @CurrentUser AuthUser user,
+      @RequestParam(defaultValue = "0") int page,
+      @RequestParam(defaultValue = "50") int size) {
+    return transactionService.listTrash(user.id(), page, size);
+  }
+
+  @DeleteMapping("/{id}/permanent")
+  public ResponseEntity<Void> permanent(@CurrentUser AuthUser user, @PathVariable long id) {
+    transactionService.permanentlyDelete(user.id(), id);
+    return ResponseEntity.noContent().build();
+  }
 }
