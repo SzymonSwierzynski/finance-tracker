@@ -3,6 +3,9 @@ package com.financetracker.transaction;
 import com.financetracker.common.security.AuthUser;
 import com.financetracker.common.security.CurrentUser;
 import com.financetracker.common.web.PageResponse;
+import com.financetracker.transaction.dto.BulkCategorizeRequest;
+import com.financetracker.transaction.dto.BulkIdsRequest;
+import com.financetracker.transaction.dto.BulkResult;
 import com.financetracker.transaction.dto.CreateTransactionRequest;
 import com.financetracker.transaction.dto.TransactionResponse;
 import com.financetracker.transaction.dto.UpdateTransactionRequest;
@@ -95,5 +98,24 @@ public class TransactionController {
   public ResponseEntity<Void> permanent(@CurrentUser AuthUser user, @PathVariable long id) {
     transactionService.permanentlyDelete(user.id(), id);
     return ResponseEntity.noContent().build();
+  }
+
+  @PostMapping("/bulk-delete")
+  public BulkResult bulkDelete(
+      @CurrentUser AuthUser user, @Valid @RequestBody BulkIdsRequest request) {
+    return new BulkResult(transactionService.bulkDelete(user.id(), request.ids()));
+  }
+
+  @PostMapping("/bulk-restore")
+  public BulkResult bulkRestore(
+      @CurrentUser AuthUser user, @Valid @RequestBody BulkIdsRequest request) {
+    return new BulkResult(transactionService.bulkRestore(user.id(), request.ids()));
+  }
+
+  @PostMapping("/bulk-categorize")
+  public BulkResult bulkCategorize(
+      @CurrentUser AuthUser user, @Valid @RequestBody BulkCategorizeRequest request) {
+    return new BulkResult(
+        transactionService.bulkCategorize(user.id(), request.ids(), request.categoryId()));
   }
 }

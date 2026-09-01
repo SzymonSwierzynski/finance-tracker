@@ -25,9 +25,11 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -287,6 +289,47 @@ public class TransactionService {
             .findByIdAndUserIdAndDeletedAtIsNotNull(id, userId)
             .orElseThrow(() -> NotFoundException.of("Transaction", id));
     transactionRepository.delete(tx);
+  }
+
+  @Transactional
+  public int bulkDelete(long userId, List<Long> ids) {
+    List<Transaction> txs = requireAllActive(userId, ids);
+    Instant now = Instant.now();
+    txs.forEach(t -> t.setDeletedAt(now));
+    transactionRepository.saveAll(txs);
+    return txs.size();
+  }
+
+  @Transactional
+  public int bulkRestore(long userId, List<Long> ids) {
+    Set<Long> distinct = new LinkedHashSet<>(ids);
+    List<Transaction> txs =
+        transactionRepository.findByIdInAndUserIdAndDeletedAtIsNotNull(distinct, userId);
+    if (txs.size() != distinct.size()) {
+      throw new NotFoundException("One or more transactions were not found in the trash.");
+    }
+    txs.forEach(t -> t.setDeletedAt(null));
+    transactionRepository.saveAll(txs);
+    return txs.size();
+  }
+
+  @Transactional
+  public int bulkCategorize(long userId, List<Long> ids, Long categoryId) {
+    List<Transaction> txs = requireAllActive(userId, ids);
+    // resolveCategoryId validates ownership + kind + rejects transfers, per transaction (atomic).
+    txs.forEach(t -> t.setCategoryId(resolveCategoryId(userId, t.getType(), categoryId)));
+    transactionRepository.saveAll(txs);
+    return txs.size();
+  }
+
+  private List<Transaction> requireAllActive(long userId, List<Long> ids) {
+    Set<Long> distinct = new LinkedHashSet<>(ids);
+    List<Transaction> txs =
+        transactionRepository.findByIdInAndUserIdAndDeletedAtIsNull(distinct, userId);
+    if (txs.size() != distinct.size()) {
+      throw new NotFoundException("One or more transactions were not found.");
+    }
+    return txs;
   }
 
   @Transactional(readOnly = true)

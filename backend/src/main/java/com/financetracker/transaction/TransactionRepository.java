@@ -29,6 +29,12 @@ public interface TransactionRepository
   /** A trashed row (for restore / delete-forever). */
   Optional<Transaction> findByIdAndUserIdAndDeletedAtIsNotNull(long id, long userId);
 
+  /** The active, owned subset of the given ids (bulk delete / categorize targets). */
+  List<Transaction> findByIdInAndUserIdAndDeletedAtIsNull(Collection<Long> ids, long userId);
+
+  /** The trashed, owned subset of the given ids (bulk restore targets). */
+  List<Transaction> findByIdInAndUserIdAndDeletedAtIsNotNull(Collection<Long> ids, long userId);
+
   /** All of the user's active transactions, oldest first — for data export / backup. */
   List<Transaction> findByUserIdAndDeletedAtIsNullOrderByDateAscIdAsc(long userId);
 
