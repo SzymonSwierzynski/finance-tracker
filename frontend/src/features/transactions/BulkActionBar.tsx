@@ -20,6 +20,14 @@ export function BulkActionBar({
   const { t } = useTranslation()
   const [choice, setChoice] = useState('')
 
+  // Mirror TransactionForm's "Parent / Child" label so nested categories carry their parent
+  // for context (the bare "· Child" form is ambiguous across same-named subcategories).
+  const label = (c: { id: number; name: string; parentId: number | null }) => {
+    if (c.parentId == null) return c.name
+    const parent = categories.find((x) => x.id === c.parentId)
+    return parent ? `${parent.name} / ${c.name}` : c.name
+  }
+
   const apply = () => {
     if (!choice) return
     onCategorize(choice === 'none' ? null : Number(choice))
@@ -41,7 +49,7 @@ export function BulkActionBar({
           <option value="none">{t('transactions.uncategorize')}</option>
           {categories.map((c) => (
             <option key={c.id} value={c.id}>
-              {c.parentId == null ? c.name : `· ${c.name}`}
+              {label(c)}
             </option>
           ))}
         </Select>
