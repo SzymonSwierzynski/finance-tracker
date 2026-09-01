@@ -70,3 +70,28 @@ export function usePermanentlyDeleteTransaction() {
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['transactions', 'trash'] }),
   })
 }
+
+export function useBulkDelete() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (ids: number[]) => transactionsApi.bulkDelete(ids),
+    onSuccess: () => invalidateDerived(qc),
+  })
+}
+
+export function useBulkRestore() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (ids: number[]) => transactionsApi.bulkRestore(ids),
+    onSuccess: () => invalidateDerived(qc),
+  })
+}
+
+export function useBulkCategorize() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ ids, categoryId }: { ids: number[]; categoryId: number | null }) =>
+      transactionsApi.bulkCategorize(ids, categoryId),
+    onSuccess: () => invalidateDerived(qc),
+  })
+}
