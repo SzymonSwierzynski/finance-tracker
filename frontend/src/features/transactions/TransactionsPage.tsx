@@ -12,7 +12,15 @@ import { useAccounts } from '@/features/accounts/hooks'
 import { useCategories } from '@/features/categories/hooks'
 import { useSettings } from '@/features/settings/hooks'
 import { TransactionForm } from './TransactionForm'
-import { useDeleteTransaction, useRestoreTransaction, useTransactions } from './hooks'
+import {
+  useBulkCategorize,
+  useBulkDelete,
+  useBulkRestore,
+  useDeleteTransaction,
+  useRestoreTransaction,
+  useTransactions,
+} from './hooks'
+import { BulkActionBar } from './BulkActionBar'
 
 const PAGE_SIZE = 25
 
@@ -86,6 +94,59 @@ export function TransactionsPage() {
     })
   }
 
+  const [selected, setSelected] = useState<Set<number>>(new Set())
+  const clearSelection = () => setSelected(new Set())
+  const toggle = (id: number) =>
+    setSelected((s) => {
+      const next = new Set(s)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  const pageIds = (data?.items ?? []).map((tx) => tx.id)
+  const allSelected = pageIds.length > 0 && pageIds.every((id) => selected.has(id))
+  const toggleAll = () => setSelected(allSelected ? new Set() : new Set(pageIds))
+
+  const selectedTxs = (data?.items ?? []).filter((tx) => selected.has(tx.id))
+  const kinds = new Set(selectedTxs.map((tx) => tx.type))
+  const firstSelected = selectedTxs[0]
+  const selectionKind =
+    firstSelected && kinds.size === 1 && !kinds.has('transfer')
+      ? (firstSelected.type as 'expense' | 'income')
+      : null
+  const { data: bulkCategories } = useCategories(selectionKind ?? 'expense')
+
+  const bulkDelete = useBulkDelete()
+  const bulkRestore = useBulkRestore()
+  const bulkCategorize = useBulkCategorize()
+  const onBulkDelete = () => {
+    const ids = [...selected]
+    bulkDelete.mutate(ids, {
+      onSuccess: () => {
+        clearSelection()
+        toast.action(
+          t('transactions.bulkDeleted', { count: ids.length }),
+          t('transactions.undo'),
+          () => bulkRestore.mutate(ids, { onError: () => toast.error(t('errors.generic')) }),
+        )
+      },
+      onError: () => toast.error(t('errors.generic')),
+    })
+  }
+  const onBulkCategorize = (categoryId: number | null) => {
+    const ids = [...selected]
+    bulkCategorize.mutate(
+      { ids, categoryId },
+      {
+        onSuccess: () => {
+          clearSelection()
+          toast.success('✓')
+        },
+        onError: () => toast.error(t('errors.generic')),
+      },
+    )
+  }
+
   const total = data?.total ?? 0
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
@@ -155,6 +216,17 @@ export function TransactionsPage() {
         </div>
       </Card>
 
+      {selected.size > 0 && (
+        <BulkActionBar
+          count={selected.size}
+          categories={bulkCategories ?? []}
+          canCategorize={selectionKind != null}
+          onClear={clearSelection}
+          onDelete={onBulkDelete}
+          onCategorize={onBulkCategorize}
+        />
+      )}
+
       {isLoading ? (
         <Card className="divide-y divide-border-subtle">
           {[0, 1, 2, 3, 4].map((i) => (
@@ -174,6 +246,15 @@ export function TransactionsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-fg-soft">
+                  <th className="px-4 py-3">
+                    <input
+                      type="checkbox"
+                      aria-label={t('transactions.selectAll')}
+                      className="h-4 w-4 rounded border-border"
+                      checked={allSelected}
+                      onChange={toggleAll}
+                    />
+                  </th>
                   <th className="px-4 py-3 font-medium">
                     <button
                       className="inline-flex items-center gap-1 hover:text-fg-muted"
@@ -199,6 +280,15 @@ export function TransactionsPage() {
               <tbody className="divide-y divide-border-subtle">
                 {data.items.map((tx) => (
                   <tr key={tx.id} className="hover:bg-surface-2">
+                    <td className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        aria-label={t('transactions.selectRow')}
+                        className="h-4 w-4 rounded border-border"
+                        checked={selected.has(tx.id)}
+                        onChange={() => toggle(tx.id)}
+                      />
+                    </td>
                     <td className="whitespace-nowrap px-4 py-3 text-fg-soft">{formatDate(tx.date, locale)}</td>
                     <td className="px-4 py-3">
                       <div className="font-medium text-fg">{tx.description || '—'}</div>

@@ -31,4 +31,10 @@ export const transactionsApi = {
   trash: (page = 0, size = 50) =>
     api.get<Page<Transaction>>('/api/v1/transactions/trash', { params: { page, size } }),
   permanent: (id: number) => api.delete<void>(`/api/v1/transactions/${id}/permanent`),
+  bulkDelete: (ids: number[]) =>
+    api.post<{ affected: number }>('/api/v1/transactions/bulk-delete', { ids }),
+  bulkRestore: (ids: number[]) =>
+    api.post<{ affected: number }>('/api/v1/transactions/bulk-restore', { ids }),
+  bulkCategorize: (ids: number[], categoryId: number | null) =>
+    api.post<{ affected: number }>('/api/v1/transactions/bulk-categorize', { ids, categoryId }),
 }

@@ -43,6 +43,7 @@ const resources = {
         expense: 'Expense', income: 'Income', transfer: 'Transfer', filters: 'Filters', category: 'Category', search: 'Search description…',
         deleteConfirm: 'Delete this transaction?', from: 'From', to: 'To', rateHint: 'Leave blank to use the rate from Settings. Whatever is used gets locked onto this transaction.',
         deleted: 'Transaction deleted', undo: 'Undo', restored: 'Transaction restored', trash: 'Trash', trashTitle: 'Deleted transactions', trashEmpty: 'Trash is empty.', restore: 'Restore', deleteForever: 'Delete forever', deleteForeverConfirm: 'Permanently delete this transaction? This cannot be undone.',
+        selectedCount: '{{count}} selected', selectAll: 'Select all', selectRow: 'Select row', recategorize: 'Recategorize', recategorizeHint: 'Select transactions of a single kind (no transfers) to recategorize.', uncategorize: 'Uncategorize', bulkDeleted: '{{count}} deleted',
       },
       categories: {
         title: 'Categories', new: 'New category', name: 'Name', kind: 'Kind', color: 'Color',
@@ -160,6 +161,7 @@ const resources = {
         expense: 'Wydatek', income: 'Przychód', transfer: 'Przelew', filters: 'Filtry', category: 'Kategoria', search: 'Szukaj w opisie…',
         deleteConfirm: 'Usunąć tę transakcję?', from: 'Od', to: 'Do', rateHint: 'Zostaw puste, aby użyć kursu z Ustawień. Użyty kurs zostanie zapisany w tej transakcji.',
         deleted: 'Usunięto transakcję', undo: 'Cofnij', restored: 'Przywrócono transakcję', trash: 'Kosz', trashTitle: 'Usunięte transakcje', trashEmpty: 'Kosz jest pusty.', restore: 'Przywróć', deleteForever: 'Usuń trwale', deleteForeverConfirm: 'Trwale usunąć tę transakcję? Tej operacji nie można cofnąć.',
+        selectedCount: 'Zaznaczono: {{count}}', selectAll: 'Zaznacz wszystkie', selectRow: 'Zaznacz wiersz', recategorize: 'Zmień kategorię', recategorizeHint: 'Wybierz transakcje jednego rodzaju (bez przelewów), aby zmienić kategorię.', uncategorize: 'Usuń kategorię', bulkDeleted: 'Usunięto: {{count}}',
       },
       categories: {
         title: 'Kategorie', new: 'Nowa kategoria', name: 'Nazwa', kind: 'Rodzaj', color: 'Kolor',
