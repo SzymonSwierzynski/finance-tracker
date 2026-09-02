@@ -13,7 +13,9 @@ import com.financetracker.common.idempotency.Fingerprints;
 import com.financetracker.common.idempotency.IdempotencyService;
 import com.financetracker.fx.RateResolver;
 import com.financetracker.importing.CsvParser.ParsedCsv;
+import com.financetracker.importing.detect.CsvMappingDetector;
 import com.financetracker.importing.dto.CommitResponse;
+import com.financetracker.importing.dto.DetectionInfo;
 import com.financetracker.importing.dto.ImportBatchResponse;
 import com.financetracker.importing.dto.ImportMapping;
 import com.financetracker.importing.dto.PreviewResponse;
@@ -82,6 +84,17 @@ public class ImportService {
   @Transactional(readOnly = true)
   public PreviewResponse preview(long userId, long accountId, byte[] file, ImportMapping mapping) {
     Account account = requireOwnedAccount(userId, accountId);
+    DetectionInfo detection = null;
+    if (mapping == null) {
+      var saved = importProfileRepository.findByUserIdAndAccountId(userId, accountId);
+      if (saved.isPresent()) {
+        mapping = toMapping(saved.get());
+      } else {
+        CsvMappingDetector.Detected d = CsvMappingDetector.detect(file);
+        mapping = d.mapping();
+        detection = d.info();
+      }
+    }
     String text = CsvDecoder.decode(file, mapping.encoding());
     boolean misdecoded = CsvDecoder.looksMisdecoded(text);
     ParsedCsv parsed = CsvParser.parse(text, mapping.delimiter());
@@ -96,10 +109,17 @@ public class ImportService {
     List<PreviewRow> previewRows = new ArrayList<>();
     int validRows = 0;
     int duplicateRows = 0;
+    long incomeMinor = 0;
+    long expenseMinor = 0;
     for (ParsedImportRow row : rows) {
       boolean duplicate = false;
       if (row.valid()) {
         validRows++;
+        if (row.type() == TransactionType.INCOME) {
+          incomeMinor += row.amountMinor();
+        } else {
+          expenseMinor += row.amountMinor();
+        }
         String hash = dedupeHash(row, account.getCurrency(), accountId);
         duplicate = existing.contains(hash) || !seenInFile.add(hash);
         if (duplicate) {
@@ -123,6 +143,10 @@ public class ImportService {
         rows.size(),
         validRows,
         duplicateRows,
+        incomeMinor,
+        expenseMinor,
+        mapping,
+        detection,
         previewRows);
   }
 
@@ -134,16 +158,26 @@ public class ImportService {
       byte[] file,
       ImportMapping mapping,
       String idempotencyKey) {
+    final ImportMapping resolvedMapping =
+        mapping != null
+            ? mapping
+            : importProfileRepository
+                .findByUserIdAndAccountId(userId, accountId)
+                .map(ImportService::toMapping)
+                .orElseGet(() -> CsvMappingDetector.detect(file).mapping());
     String fingerprint =
         Fingerprints.of(
-            objectMapper, mapping, Long.toString(accountId).getBytes(StandardCharsets.UTF_8), file);
+            objectMapper,
+            resolvedMapping,
+            Long.toString(accountId).getBytes(StandardCharsets.UTF_8),
+            file);
     return idempotencyService.execute(
         userId,
         "import-commit",
         idempotencyKey,
         fingerprint,
         CommitResponse.class,
-        () -> commitInternal(userId, accountId, fileName, file, mapping));
+        () -> commitInternal(userId, accountId, fileName, file, resolvedMapping));
   }
 
   private CommitResponse commitInternal(
@@ -299,6 +333,13 @@ public class ImportService {
     profile.setExpenseIsNegative(mapping.expenseIsNegative());
     profile.setDebitIndex(mapping.debitIndex());
     profile.setCreditIndex(mapping.creditIndex());
+    profile.setHeaderRowIndex(mapping.headerRowIndex());
+    profile.setDescriptionIndexes(
+        mapping.descriptionIndexes() == null || mapping.descriptionIndexes().isEmpty()
+            ? null
+            : mapping.descriptionIndexes().stream()
+                .map(String::valueOf)
+                .collect(java.util.stream.Collectors.joining(",")));
     return importProfileRepository.save(profile);
   }
 
@@ -331,13 +372,22 @@ public class ImportService {
   }
 
   private static ImportMapping toMapping(ImportProfile p) {
+    List<Integer> descIdx =
+        (p.getDescriptionIndexes() == null || p.getDescriptionIndexes().isBlank())
+            ? null
+            : java.util.Arrays.stream(p.getDescriptionIndexes().split(","))
+                .map(String::trim)
+                .map(Integer::valueOf)
+                .toList();
     return new ImportMapping(
         p.getDelimiter(),
         p.getEncoding(),
         p.isHasHeader(),
+        p.getHeaderRowIndex(),
         p.getDateIndex(),
         p.getDateFormat(),
         p.getDescriptionIndex(),
+        descIdx,
         p.getAmountMode(),
         p.getAmountIndex(),
         p.isExpenseIsNegative(),

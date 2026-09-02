@@ -44,7 +44,7 @@ public class ImportController {
       @CurrentUser AuthUser user,
       @RequestParam long accountId,
       @RequestPart("file") MultipartFile file,
-      @RequestPart("mapping") @Valid ImportMapping mapping) {
+      @RequestPart(value = "mapping", required = false) @Valid ImportMapping mapping) {
     return importService.preview(user.id(), accountId, bytes(file), mapping);
   }
 
@@ -54,7 +54,7 @@ public class ImportController {
       @RequestParam long accountId,
       @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
       @RequestPart("file") MultipartFile file,
-      @RequestPart("mapping") @Valid ImportMapping mapping) {
+      @RequestPart(value = "mapping", required = false) @Valid ImportMapping mapping) {
     String name = file.getOriginalFilename() == null ? "import.csv" : file.getOriginalFilename();
     CommitResponse result =
         importService.commit(user.id(), accountId, name, bytes(file), mapping, idempotencyKey);

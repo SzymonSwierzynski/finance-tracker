@@ -49,4 +49,10 @@ public class ImportProfile extends UserOwnedEntity {
 
   @Column(name = "credit_index", nullable = false)
   private int creditIndex;
+
+  @Column(name = "header_row_index")
+  private Integer headerRowIndex;
+
+  @Column(name = "description_indexes")
+  private String descriptionIndexes; // comma-joined, e.g. "2,3"; null = use descriptionIndex
 }
