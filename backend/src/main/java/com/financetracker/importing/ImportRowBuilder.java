@@ -19,11 +19,14 @@ public final class ImportRowBuilder {
 
   public static List<ParsedImportRow> build(List<List<String>> rows, ImportMapping mapping) {
     List<ParsedImportRow> out = new ArrayList<>();
-    int startAt = mapping.hasHeader() ? 1 : 0;
+    int startAt =
+        mapping.headerRowIndex() != null
+            ? mapping.headerRowIndex() + 1
+            : (mapping.hasHeader() ? 1 : 0);
 
     for (int i = startAt; i < rows.size(); i++) {
       List<String> raw = rows.get(i);
-      String description = cell(raw, mapping.descriptionIndex());
+      String description = description(raw, mapping);
       LocalDate date =
           CsvDateParser.parseFlexible(cell(raw, mapping.dateIndex()), mapping.dateFormat());
 
@@ -70,6 +73,22 @@ public final class ImportRowBuilder {
     }
 
     return out;
+  }
+
+  /** Join the mapped description columns with a space; fall back to the single index. */
+  private static String description(List<String> row, ImportMapping mapping) {
+    List<Integer> idxs = mapping.descriptionIndexes();
+    if (idxs == null || idxs.isEmpty()) {
+      return cell(row, mapping.descriptionIndex());
+    }
+    StringBuilder sb = new StringBuilder();
+    for (int idx : idxs) {
+      String c = cell(row, idx);
+      if (!c.isEmpty()) {
+        sb.append(sb.length() == 0 ? "" : " ").append(c);
+      }
+    }
+    return sb.toString();
   }
 
   private static String cell(List<String> row, int idx) {

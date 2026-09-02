@@ -15,10 +15,11 @@ class ImportRowBuilderTest {
   @Nested
   class SignedAmountColumn {
 
-    // delimiter, encoding, hasHeader, dateIndex, dateFormat, descriptionIndex,
-    // amountMode, amountIndex, expenseIsNegative, debitIndex, creditIndex
+    // delimiter, encoding, hasHeader, headerRowIndex, dateIndex, dateFormat, descriptionIndex,
+    // descriptionIndexes, amountMode, amountIndex, expenseIsNegative, debitIndex, creditIndex
     private final ImportMapping base =
-        new ImportMapping(";", "utf-8", true, 0, "auto", 1, AmountMode.SIGNED, 2, true, -1, -1);
+        new ImportMapping(
+            ";", "utf-8", true, null, 0, "auto", 1, null, AmountMode.SIGNED, 2, true, -1, -1);
 
     private final List<List<String>> rows =
         List.of(
@@ -60,7 +61,8 @@ class ImportRowBuilderTest {
     @Test
     void honoursTheOppositeSignConvention() {
       ImportMapping flipped =
-          new ImportMapping(";", "utf-8", true, 0, "auto", 1, AmountMode.SIGNED, 2, false, -1, -1);
+          new ImportMapping(
+              ";", "utf-8", true, null, 0, "auto", 1, null, AmountMode.SIGNED, 2, false, -1, -1);
       List<ParsedImportRow> out = ImportRowBuilder.build(rows, flipped);
       assertThat(out.get(0).type())
           .isEqualTo(TransactionType.INCOME); // -19,99 now counts as income
@@ -73,7 +75,7 @@ class ImportRowBuilderTest {
 
     private final ImportMapping mapping =
         new ImportMapping(
-            ";", "utf-8", true, 0, "auto", 1, AmountMode.DEBIT_CREDIT, -1, true, 2, 3);
+            ";", "utf-8", true, null, 0, "auto", 1, null, AmountMode.DEBIT_CREDIT, -1, true, 2, 3);
 
     private final List<List<String>> rows =
         List.of(

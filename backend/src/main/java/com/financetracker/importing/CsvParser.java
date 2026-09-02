@@ -41,28 +41,43 @@ public final class CsvParser {
     }
   }
 
-  /** Pick the candidate that appears most on the first non-empty line (a PapaParse-style sniff). */
+  /**
+   * Choose the delimiter that partitions the file most consistently. Score each candidate across
+   * the first 40 non-empty lines by how many lines share the modal occurrence-count (consistency),
+   * tie-broken by the modal count itself. Robust against a comma-heavy preamble before a ';' table.
+   */
   private static char detectDelimiter(String text) {
-    String firstLine = firstNonEmptyLine(text);
+    String[] lines = text.split("\r\n|\r|\n");
     char best = ',';
-    int bestCount = -1;
+    int bestConsistency = -1;
+    int bestModal = -1;
     for (char candidate : CANDIDATE_DELIMITERS) {
-      int count = countOccurrences(firstLine, candidate);
-      if (count > bestCount) {
-        bestCount = count;
+      java.util.Map<Integer, Integer> counts = new java.util.HashMap<>();
+      int seen = 0;
+      for (String line : lines) {
+        if (line.isBlank()) {
+          continue;
+        }
+        counts.merge(countOccurrences(line, candidate), 1, Integer::sum);
+        if (++seen >= 40) {
+          break;
+        }
+      }
+      int modal = 0;
+      int consistency = 0;
+      for (var e : counts.entrySet()) {
+        if (e.getKey() > 0 && e.getValue() > consistency) {
+          consistency = e.getValue();
+          modal = e.getKey();
+        }
+      }
+      if (consistency > bestConsistency || (consistency == bestConsistency && modal > bestModal)) {
+        bestConsistency = consistency;
+        bestModal = modal;
         best = candidate;
       }
     }
     return best;
-  }
-
-  private static String firstNonEmptyLine(String text) {
-    for (String line : text.split("\r\n|\r|\n")) {
-      if (!line.isBlank()) {
-        return line;
-      }
-    }
-    return "";
   }
 
   private static int countOccurrences(String s, char c) {
