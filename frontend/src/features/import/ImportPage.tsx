@@ -15,22 +15,7 @@ import {
 import { Money } from '@/components/Money'
 import { useToast } from '@/components/Toast'
 import { useAccounts } from '@/features/accounts/hooks'
-import { importApi } from './api'
 import { useCommitImport, useImportBatches, usePreviewImport, useUndoImport } from './hooks'
-
-const DEFAULT_MAPPING: ImportMapping = {
-  delimiter: '',
-  encoding: 'utf-8',
-  hasHeader: true,
-  dateIndex: 0,
-  dateFormat: 'auto',
-  descriptionIndex: 1,
-  amountMode: 'signed',
-  amountIndex: 2,
-  expenseIsNegative: true,
-  debitIndex: -1,
-  creditIndex: -1,
-}
 
 export function ImportPage() {
   const { t } = useTranslation()
@@ -41,53 +26,55 @@ export function ImportPage() {
   const commit = useCommitImport()
   const undo = useUndoImport()
 
-  const [step, setStep] = useState<1 | 2 | 3>(1)
   const [accountId, setAccountId] = useState<number | ''>('')
   const [file, setFile] = useState<File | null>(null)
-  const [mapping, setMapping] = useState<ImportMapping>(DEFAULT_MAPPING)
+  const [fileKey, setFileKey] = useState(0) // bump to clear the uncontrolled file input after commit
+  // The mapping actually in use — seeded from the server's detection, then editable via "Adjust columns".
+  const [mapping, setMapping] = useState<ImportMapping | null>(null)
   const [previewData, setPreviewData] = useState<PreviewResponse | null>(null)
+  const [adjusting, setAdjusting] = useState(false)
 
   const currency = accounts?.find((a) => a.id === accountId)?.currency ?? 'PLN'
   const importable = previewData ? previewData.validRows - previewData.duplicateRows : 0
 
-  const reset = () => {
-    setStep(1)
-    setFile(null)
-    setPreviewData(null)
-    setMapping(DEFAULT_MAPPING)
-  }
-
-  const goToMapping = async () => {
-    if (typeof accountId === 'number') {
-      // Prefill the remembered mapping for this account, if any (404 -> keep defaults).
-      try {
-        setMapping(await importApi.getProfile(accountId))
-      } catch {
-        /* no saved profile */
-      }
-    }
-    setStep(2)
-  }
-
   const onError = (err: unknown) =>
     toast.error(err instanceof ApiError ? err.detail || err.title : t('errors.generic'))
 
-  const runPreview = () => {
-    if (typeof accountId !== 'number' || !file) return
+  /** Run a preview. `withMapping` null → the backend auto-detects (or uses a saved profile). */
+  const runPreview = (acc: number, f: File, withMapping: ImportMapping | null) => {
     preview.mutate(
-      { accountId, file, mapping },
+      { accountId: acc, file: f, mapping: withMapping },
       {
         onSuccess: (data) => {
           setPreviewData(data)
-          setStep(3)
+          setMapping(data.mapping) // seed "Adjust columns" from what was actually used
         },
         onError,
       },
     )
   }
 
+  // Detect-first: as soon as an account and a file are both chosen, auto-detect and preview.
+  const detect = (acc: number | '', f: File | null) => {
+    setAdjusting(false)
+    if (typeof acc === 'number' && f) {
+      runPreview(acc, f, null)
+    } else {
+      setPreviewData(null)
+      setMapping(null)
+    }
+  }
+
+  const reset = () => {
+    setFile(null)
+    setFileKey((k) => k + 1)
+    setPreviewData(null)
+    setMapping(null)
+    setAdjusting(false)
+  }
+
   const runCommit = () => {
-    if (typeof accountId !== 'number' || !file) return
+    if (typeof accountId !== 'number' || !file || !mapping) return
     commit.mutate(
       { accountId, file, mapping },
       {
@@ -115,201 +102,230 @@ export function ImportPage() {
   }
 
   const set = <K extends keyof ImportMapping>(key: K, value: ImportMapping[K]) =>
-    setMapping((m) => ({ ...m, [key]: value }))
+    setMapping((m) => (m ? { ...m, [key]: value } : m))
 
   return (
     <div className="space-y-8">
       <PageHeader title={t('import.title')} subtitle={t('import.subtitle')} />
 
-      <Card className="p-5">
-        <ol className="mb-6 flex flex-wrap gap-2 text-xs font-medium">
-          {([1, 2, 3] as const).map((s) => (
-            <li
-              key={s}
-              className={`flex items-center gap-2 rounded-full px-3 py-1 ${step === s ? 'bg-accent-soft text-accent' : 'text-fg-subtle'}`}
+      <Card className="space-y-6 p-5">
+        <div className="grid max-w-2xl gap-4 sm:grid-cols-2">
+          <Field label={t('import.account')} htmlFor="imp-account">
+            <Select
+              id="imp-account"
+              value={accountId}
+              onChange={(e) => {
+                const v = e.target.value ? Number(e.target.value) : ''
+                setAccountId(v)
+                detect(v, file)
+              }}
             >
-              <span
-                className={`flex size-5 items-center justify-center rounded-full ${step >= s ? 'bg-brand-600 text-white' : 'bg-border'}`}
-              >
-                {s}
-              </span>
-              {t(`import.step${s}`)}
-            </li>
-          ))}
-        </ol>
+              <option value="">—</option>
+              {(accounts ?? []).map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name} ({a.currency})
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label={t('import.file')} htmlFor="imp-file">
+            <input
+              key={fileKey}
+              id="imp-file"
+              type="file"
+              accept=".csv,text/csv"
+              onChange={(e) => {
+                const f = e.target.files?.[0] ?? null
+                setFile(f)
+                detect(accountId, f)
+              }}
+              className="block w-full text-sm text-fg-muted file:mr-3 file:rounded-lg file:border-0 file:bg-accent-soft file:px-3 file:py-2 file:text-sm file:font-medium file:text-accent hover:file:bg-accent-soft"
+            />
+          </Field>
+        </div>
 
-        {step === 1 && (
-          <div className="max-w-md space-y-4">
-            <Field label={t('import.account')} htmlFor="imp-account">
-              <Select
-                id="imp-account"
-                value={accountId}
-                onChange={(e) => setAccountId(e.target.value ? Number(e.target.value) : '')}
-              >
-                <option value="">—</option>
-                {(accounts ?? []).map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name} ({a.currency})
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            <Field label={t('import.file')} htmlFor="imp-file">
-              <input
-                id="imp-file"
-                type="file"
-                accept=".csv,text/csv"
-                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-                className="block w-full text-sm text-fg-muted file:mr-3 file:rounded-lg file:border-0 file:bg-accent-soft file:px-3 file:py-2 file:text-sm file:font-medium file:text-accent hover:file:bg-accent-soft"
-              />
-            </Field>
-            <Button onClick={goToMapping} disabled={typeof accountId !== 'number' || !file}>
-              {t('import.next')}
-            </Button>
-          </div>
-        )}
+        {preview.isPending && !previewData && <Skeleton className="h-24 w-full" />}
 
-        {step === 2 && (
+        {previewData && (
           <div className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <Field label={t('import.encoding')} htmlFor="imp-enc">
-                <Select id="imp-enc" value={mapping.encoding} onChange={(e) => set('encoding', e.target.value)}>
-                  {SUPPORTED_ENCODINGS.map((enc) => (
-                    <option key={enc} value={enc}>
-                      {enc}
-                    </option>
+            {/* Detection banner (auto-detected only) + income/expense sanity totals. */}
+            <div className="rounded-lg border border-border bg-surface-2 px-4 py-2.5 text-sm">
+              {previewData.detection && (
+                <div>
+                  <span className="font-medium">{t('import.detected')}:</span>{' '}
+                  {previewData.detection.encoding} ·{' '}
+                  {t('import.headerRow', {
+                    row: (previewData.detection.headerRowIndex ?? 0) + 1,
+                  })}
+                  {Object.entries(previewData.detection.recognizedColumns).map(([role, label]) => (
+                    <span key={role} className="ml-2 text-fg-soft">
+                      · {t(`import.role_${role}`)}: {label}
+                    </span>
                   ))}
-                </Select>
-              </Field>
-              <Field label={t('import.delimiter')} htmlFor="imp-delim">
-                <Select id="imp-delim" value={mapping.delimiter} onChange={(e) => set('delimiter', e.target.value)}>
-                  <option value="">{t('import.autoDetect')}</option>
-                  <option value=";">;</option>
-                  <option value=",">,</option>
-                  <option value={'\t'}>Tab</option>
-                </Select>
-              </Field>
-              <Field label={t('import.hasHeader')} htmlFor="imp-header">
-                <Select
-                  id="imp-header"
-                  value={mapping.hasHeader ? '1' : '0'}
-                  onChange={(e) => set('hasHeader', e.target.value === '1')}
-                >
-                  <option value="1">{t('common.yes')}</option>
-                  <option value="0">{t('common.no')}</option>
-                </Select>
-              </Field>
-              <Field label={t('import.dateColumn')} htmlFor="imp-datecol">
-                <Input
-                  id="imp-datecol"
-                  type="number"
-                  min={0}
-                  value={mapping.dateIndex}
-                  onChange={(e) => set('dateIndex', Number(e.target.value))}
-                />
-              </Field>
-              <Field label={t('import.dateFormat')} htmlFor="imp-datefmt">
-                <Select id="imp-datefmt" value={mapping.dateFormat} onChange={(e) => set('dateFormat', e.target.value)}>
-                  {DATE_FORMAT_OPTIONS.map((f) => (
-                    <option key={f} value={f}>
-                      {f === 'auto' ? t('import.autoDetect') : f}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-              <Field label={t('import.descriptionColumn')} htmlFor="imp-desccol">
-                <Input
-                  id="imp-desccol"
-                  type="number"
-                  min={0}
-                  value={mapping.descriptionIndex}
-                  onChange={(e) => set('descriptionIndex', Number(e.target.value))}
-                />
-              </Field>
-              <Field label={t('import.amountMode')} htmlFor="imp-mode">
-                <Select
-                  id="imp-mode"
-                  value={mapping.amountMode}
-                  onChange={(e) => set('amountMode', e.target.value as ImportMapping['amountMode'])}
-                >
-                  {AMOUNT_MODES.map((m) => (
-                    <option key={m} value={m}>
-                      {t(`import.${m}`)}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-              {mapping.amountMode === 'signed' ? (
-                <>
-                  <Field label={t('import.amountColumn')} htmlFor="imp-amt">
-                    <Input
-                      id="imp-amt"
-                      type="number"
-                      min={0}
-                      value={mapping.amountIndex}
-                      onChange={(e) => set('amountIndex', Number(e.target.value))}
-                    />
-                  </Field>
-                  <Field label={t('import.expenseIsNegative')} htmlFor="imp-neg">
-                    <Select
-                      id="imp-neg"
-                      value={mapping.expenseIsNegative ? '1' : '0'}
-                      onChange={(e) => set('expenseIsNegative', e.target.value === '1')}
-                    >
-                      <option value="1">{t('common.yes')}</option>
-                      <option value="0">{t('common.no')}</option>
-                    </Select>
-                  </Field>
-                </>
-              ) : (
-                <>
-                  <Field label={t('import.debitColumn')} htmlFor="imp-debit">
-                    <Input
-                      id="imp-debit"
-                      type="number"
-                      min={0}
-                      value={mapping.debitIndex}
-                      onChange={(e) => set('debitIndex', Number(e.target.value))}
-                    />
-                  </Field>
-                  <Field label={t('import.creditColumn')} htmlFor="imp-credit">
-                    <Input
-                      id="imp-credit"
-                      type="number"
-                      min={0}
-                      value={mapping.creditIndex}
-                      onChange={(e) => set('creditIndex', Number(e.target.value))}
-                    />
-                  </Field>
-                </>
+                </div>
               )}
+              <div className={previewData.detection ? 'mt-1 text-fg-soft' : 'text-fg-soft'}>
+                {t('import.income')}:{' '}
+                <Money minor={previewData.incomeMinor} currency={currency} /> ·{' '}
+                {t('import.expense')}:{' '}
+                <Money minor={previewData.expenseMinor} currency={currency} />
+              </div>
             </div>
-            <div className="flex gap-2">
-              <Button variant="secondary" onClick={() => setStep(1)}>
-                {t('import.back')}
-              </Button>
-              <Button onClick={runPreview} loading={preview.isPending}>
-                {t('import.preview')}
-              </Button>
-            </div>
-          </div>
-        )}
 
-        {step === 3 && previewData && (
-          <div className="space-y-4">
             {previewData.misdecoded && (
               <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
                 {t('import.misdecoded')}
               </p>
             )}
-            <div className="flex flex-wrap gap-2">
+
+            <div className="flex flex-wrap items-center gap-2">
               <Badge tone="slate">{t('import.rows', { count: previewData.totalRows })}</Badge>
               <Badge tone="green">{t('import.valid', { count: importable })}</Badge>
               <Badge tone="slate">{t('import.duplicates', { count: previewData.duplicateRows })}</Badge>
               <Badge tone="red">
                 {t('import.invalid', { count: previewData.totalRows - previewData.validRows })}
               </Badge>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="ml-auto"
+                onClick={() => setAdjusting((v) => !v)}
+              >
+                {t('import.adjustColumns')}
+              </Button>
             </div>
+
+            {adjusting && mapping && (
+              <div className="space-y-4 rounded-lg border border-border-subtle p-4">
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  <Field label={t('import.encoding')} htmlFor="imp-enc">
+                    <Select id="imp-enc" value={mapping.encoding} onChange={(e) => set('encoding', e.target.value)}>
+                      {SUPPORTED_ENCODINGS.map((enc) => (
+                        <option key={enc} value={enc}>
+                          {enc}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                  <Field label={t('import.delimiter')} htmlFor="imp-delim">
+                    <Select id="imp-delim" value={mapping.delimiter} onChange={(e) => set('delimiter', e.target.value)}>
+                      <option value="">{t('import.autoDetect')}</option>
+                      <option value=";">;</option>
+                      <option value=",">,</option>
+                      <option value={'\t'}>Tab</option>
+                    </Select>
+                  </Field>
+                  <Field label={t('import.hasHeader')} htmlFor="imp-header">
+                    <Select
+                      id="imp-header"
+                      value={mapping.hasHeader ? '1' : '0'}
+                      onChange={(e) => set('hasHeader', e.target.value === '1')}
+                    >
+                      <option value="1">{t('common.yes')}</option>
+                      <option value="0">{t('common.no')}</option>
+                    </Select>
+                  </Field>
+                  <Field label={t('import.dateColumn')} htmlFor="imp-datecol">
+                    <Input
+                      id="imp-datecol"
+                      type="number"
+                      min={0}
+                      value={mapping.dateIndex}
+                      onChange={(e) => set('dateIndex', Number(e.target.value))}
+                    />
+                  </Field>
+                  <Field label={t('import.dateFormat')} htmlFor="imp-datefmt">
+                    <Select id="imp-datefmt" value={mapping.dateFormat} onChange={(e) => set('dateFormat', e.target.value)}>
+                      {DATE_FORMAT_OPTIONS.map((f) => (
+                        <option key={f} value={f}>
+                          {f === 'auto' ? t('import.autoDetect') : f}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                  <Field label={t('import.descriptionColumn')} htmlFor="imp-desccol">
+                    <Input
+                      id="imp-desccol"
+                      type="number"
+                      min={0}
+                      value={mapping.descriptionIndex}
+                      onChange={(e) =>
+                        // Editing the scalar column clears any multi-column detection so it takes effect.
+                        setMapping((m) =>
+                          m ? { ...m, descriptionIndex: Number(e.target.value), descriptionIndexes: null } : m,
+                        )
+                      }
+                    />
+                  </Field>
+                  <Field label={t('import.amountMode')} htmlFor="imp-mode">
+                    <Select
+                      id="imp-mode"
+                      value={mapping.amountMode}
+                      onChange={(e) => set('amountMode', e.target.value as ImportMapping['amountMode'])}
+                    >
+                      {AMOUNT_MODES.map((m) => (
+                        <option key={m} value={m}>
+                          {t(`import.${m}`)}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                  {mapping.amountMode === 'signed' ? (
+                    <>
+                      <Field label={t('import.amountColumn')} htmlFor="imp-amt">
+                        <Input
+                          id="imp-amt"
+                          type="number"
+                          min={0}
+                          value={mapping.amountIndex}
+                          onChange={(e) => set('amountIndex', Number(e.target.value))}
+                        />
+                      </Field>
+                      <Field label={t('import.expenseIsNegative')} htmlFor="imp-neg">
+                        <Select
+                          id="imp-neg"
+                          value={mapping.expenseIsNegative ? '1' : '0'}
+                          onChange={(e) => set('expenseIsNegative', e.target.value === '1')}
+                        >
+                          <option value="1">{t('common.yes')}</option>
+                          <option value="0">{t('common.no')}</option>
+                        </Select>
+                      </Field>
+                    </>
+                  ) : (
+                    <>
+                      <Field label={t('import.debitColumn')} htmlFor="imp-debit">
+                        <Input
+                          id="imp-debit"
+                          type="number"
+                          min={0}
+                          value={mapping.debitIndex}
+                          onChange={(e) => set('debitIndex', Number(e.target.value))}
+                        />
+                      </Field>
+                      <Field label={t('import.creditColumn')} htmlFor="imp-credit">
+                        <Input
+                          id="imp-credit"
+                          type="number"
+                          min={0}
+                          value={mapping.creditIndex}
+                          onChange={(e) => set('creditIndex', Number(e.target.value))}
+                        />
+                      </Field>
+                    </>
+                  )}
+                </div>
+                <Button
+                  onClick={() => {
+                    if (typeof accountId === 'number' && file) runPreview(accountId, file, mapping)
+                  }}
+                  loading={preview.isPending}
+                >
+                  {t('import.preview')}
+                </Button>
+              </div>
+            )}
+
             <div className="max-h-96 overflow-auto rounded-lg border border-border">
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-surface-2 text-left text-xs text-fg-soft">
@@ -351,14 +367,9 @@ export function ImportPage() {
                 </tbody>
               </table>
             </div>
-            <div className="flex gap-2">
-              <Button variant="secondary" onClick={() => setStep(2)}>
-                {t('import.back')}
-              </Button>
-              <Button onClick={runCommit} loading={commit.isPending} disabled={importable === 0}>
-                {t('import.commit')}
-              </Button>
-            </div>
+            <Button onClick={runCommit} loading={commit.isPending} disabled={importable === 0}>
+              {t('import.commit')}
+            </Button>
           </div>
         )}
       </Card>

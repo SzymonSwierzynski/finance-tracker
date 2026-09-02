@@ -202,14 +202,26 @@ export interface ImportMapping {
   delimiter: string
   encoding: string
   hasHeader: boolean
+  /** Parsed-row index of the header (null = derive from hasHeader). Set by auto-detection. */
+  headerRowIndex: number | null
   dateIndex: number
   dateFormat: string
   descriptionIndex: number
+  /** Several description columns joined by a space (null/empty = use descriptionIndex). */
+  descriptionIndexes: number[] | null
   amountMode: AmountMode
   amountIndex: number
   expenseIsNegative: boolean
   debitIndex: number
   creditIndex: number
+}
+
+/** What auto-detection concluded, for the UI banner. */
+export interface DetectionInfo {
+  encoding: string
+  headerRowIndex: number | null
+  /** Role ("date"/"amount"/"description"/…) → the raw header label it was read from. */
+  recognizedColumns: Record<string, string>
 }
 
 export interface PreviewRow {
@@ -229,6 +241,12 @@ export interface PreviewResponse {
   totalRows: number
   validRows: number
   duplicateRows: number
+  incomeMinor: number
+  expenseMinor: number
+  /** The mapping actually used — detected (when none was supplied) or the one sent. */
+  mapping: ImportMapping
+  /** Present only when the mapping was auto-detected. */
+  detection: DetectionInfo | null
   rows: PreviewRow[]
 }
 

@@ -7,7 +7,8 @@ export const importKeys = { batches: ['imports', 'batches'] as const }
 interface ImportArgs {
   accountId: number
   file: File
-  mapping: ImportMapping
+  /** null → let the backend auto-detect (detect-first flow). */
+  mapping: ImportMapping | null
 }
 
 /** Everything an import (or its undo) changes: transactions, reports, balances, and the batch list. */
