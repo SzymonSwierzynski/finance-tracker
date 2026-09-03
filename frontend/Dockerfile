@@ -18,7 +18,11 @@ COPY . .
 RUN npm run build
 
 # --- Runtime stage: nginx serving the bundle + reverse-proxying /api ---
-FROM nginx:1.27-alpine AS runtime
+# Debian (glibc), NOT alpine: Railway's private network (*.railway.internal) is IPv6-only and
+# musl's resolver cannot resolve it — the backend, on glibc, reaches postgres.railway.internal
+# fine while an alpine nginx got NXDOMAIN for backend.railway.internal from every resolver,
+# including the system one. ENABLE_ALPINE_PRIVATE_NETWORKING=true did not help. Costs ~40MB.
+FROM nginx:1.27 AS runtime
 
 # The image's entrypoint expands /etc/nginx/templates/*.template with envsubst at boot. The FILTER
 # is load-bearing: without it envsubst would also blank nginx's own runtime vars ($host, $uri, …).
