@@ -65,7 +65,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
       HttpServletRequest request, HttpServletResponse response, FilterChain chain)
       throws ServletException, IOException {
 
-    String key = request.getRemoteAddr() + "|" + request.getRequestURI();
+    String key = clientAddress(request) + "|" + request.getRequestURI();
     if (tryConsume(key)) {
       chain.doFilter(request, response);
       return;
@@ -73,7 +73,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     long retryAfterSeconds = Math.max(1, props.window().toSeconds() / props.capacity());
     // Log the path, never the body — credentials must not reach the logs.
-    log.warn("Rate limit exceeded for {} on {}", request.getRemoteAddr(), request.getRequestURI());
+    log.warn("Rate limit exceeded for {} on {}", clientAddress(request), request.getRequestURI());
 
     ProblemDetail body =
         problem(
@@ -86,6 +86,24 @@ public class RateLimitFilter extends OncePerRequestFilter {
     response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
     response.setHeader(HttpHeaders.RETRY_AFTER, String.valueOf(retryAfterSeconds));
     objectMapper.writeValue(response.getOutputStream(), body);
+  }
+
+  /**
+   * The client address to throttle on.
+   *
+   * <p>This deliberately does NOT parse {@code X-Forwarded-For} itself. Spring's
+   * {@code ForwardedHeaderFilter} runs first and its request wrapper HIDES the forwarded headers
+   * ({@code getHeader("X-Forwarded-For")} returns null downstream), so a filter here cannot see
+   * them — and its {@code getRemoteAddr()} reports the LEFTMOST entry, which the client controls.
+   *
+   * <p>Correctness therefore comes from configuration, not code: the prod profile uses
+   * {@code server.forward-headers-strategy=native}, which puts Tomcat's {@code RemoteIpValve} in
+   * charge. The valve walks the header from the RIGHT, skipping hops that match
+   * {@code internal-proxies}, so the address here is the real peer and a forged value — which can
+   * only ever land further left — never reaches it.
+   */
+  private static String clientAddress(HttpServletRequest request) {
+    return request.getRemoteAddr();
   }
 
   /** Takes one token for {@code key}, refilling continuously at capacity-per-window. */

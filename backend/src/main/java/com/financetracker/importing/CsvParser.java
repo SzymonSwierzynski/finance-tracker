@@ -1,5 +1,6 @@
 package com.financetracker.importing;
 
+import com.financetracker.common.error.UnprocessableEntityException;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.ArrayList;
@@ -48,9 +49,24 @@ public final class CsvParser {
         rows.add(row);
       }
       return new ParsedCsv(rows, delim);
-    } catch (IOException e) {
-      throw new UncheckedIOException("Failed to parse CSV", e);
+    } catch (IOException | UncheckedIOException e) {
+      // A malformed row used to escape as UncheckedIOException -> unmapped -> 500, telling the user
+      // nothing. Commons CSV's message names the offending line ("(line 56) invalid char between
+      // encapsulated token and delimiter"), which is the one detail worth surfacing.
+      // ponytail: still all-or-nothing — one bad row rejects the file. Parse row-by-row and collect
+      // failures into the preview's invalid-row list if a second bank needs it.
+      throw new UnprocessableEntityException(
+          "Could not parse the CSV: " + rootCauseMessage(e) + ". Check that row in the file.");
     }
+  }
+
+  /** Innermost message — Commons CSV puts the line number there. */
+  private static String rootCauseMessage(Throwable t) {
+    Throwable cause = t;
+    while (cause.getCause() != null) {
+      cause = cause.getCause();
+    }
+    return cause.getMessage() == null ? t.toString() : cause.getMessage();
   }
 
   /**

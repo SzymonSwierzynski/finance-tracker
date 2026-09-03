@@ -5,8 +5,25 @@ spring:
     password: ${SPRING_DATASOURCE_PASSWORD}
 
 server:
-  # Trust X-Forwarded-* from the reverse proxy so Secure cookies / scheme are correct.
-  forward-headers-strategy: framework
+  # NATIVE (Tomcat's RemoteIpValve), not FRAMEWORK (Spring's ForwardedHeaderFilter).
+  #
+  # Both make Secure cookies / scheme correct behind the proxy, but they disagree on WHICH
+  # X-Forwarded-For entry is the client. FRAMEWORK takes the LEFTMOST, which the caller controls:
+  # sending `X-Forwarded-For: 1.2.3.4` yields `1.2.3.4, <real>, <edge>` after the proxy appends, so
+  # getRemoteAddr() returns an attacker-chosen value. The auth rate limiter keys on that, so a
+  # rotating header defeats the throttle protecting a deliberately expensive BCrypt-12 hash.
+  #
+  # RemoteIpValve instead walks the list from the RIGHT, skipping hops matching internal-proxies,
+  # and stops at the first address it does not recognise as a proxy — the real peer. Forged entries
+  # sit further left and are never reached.
+  forward-headers-strategy: native
+  tomcat:
+    remoteip:
+      # Tomcat's default list (RFC1918 + loopback) plus 100.64.0.0/10 (CGNAT), which is where
+      # Railway's edge connects from — the nginx access logs show clients arriving as 100.64.0.x.
+      # Without that range the valve would not recognise the edge as a proxy and would treat the
+      # edge's own IP as the client, collapsing every caller into one shared bucket.
+      internal-proxies: "10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}|192\\.168\\.\\d{1,3}\\.\\d{1,3}|169\\.254\\.\\d{1,3}\\.\\d{1,3}|127\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}|172\\.1[6-9]\\.\\d{1,3}\\.\\d{1,3}|172\\.2[0-9]\\.\\d{1,3}\\.\\d{1,3}|172\\.3[0-1]\\.\\d{1,3}\\.\\d{1,3}|100\\.(6[4-9]|[7-9]\\d|1[01]\\d|12[0-7])\\.\\d{1,3}\\.\\d{1,3}|0:0:0:0:0:0:0:1|::1"
 
 logging:
   # Structured JSON logs to stdout in prod (12-factor); ECS fields include the requestId MDC.

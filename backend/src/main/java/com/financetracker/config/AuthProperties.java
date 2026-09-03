@@ -15,6 +15,12 @@ public record AuthProperties(
     @DefaultValue("finance-tracker") String issuer,
     /** Cron for the expired-refresh-token purge; read by {@code @Scheduled} as a placeholder. */
     @DefaultValue("0 15 3 * * *") String tokenCleanupCron,
+    /**
+     * Whether {@code POST /auth/register} accepts new accounts. Defaults to true so dev, tests and
+     * a first deploy work; set {@code APP_AUTH_REGISTRATION_ENABLED=false} on a single-user
+     * deployment once your account exists, otherwise anyone with the URL can create one.
+     */
+    @DefaultValue("true") boolean registrationEnabled,
     @DefaultValue Cookie cookie,
     @DefaultValue Jwt jwt) {
 

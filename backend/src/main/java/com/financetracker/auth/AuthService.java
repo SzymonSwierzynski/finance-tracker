@@ -4,6 +4,7 @@ import com.financetracker.auth.dto.UserProfileResponse;
 import com.financetracker.category.DefaultCategorySeeder;
 import com.financetracker.common.error.ConflictException;
 import com.financetracker.common.error.NotFoundException;
+import com.financetracker.common.error.UnprocessableEntityException;
 import com.financetracker.config.AuthProperties;
 import com.financetracker.settings.SettingsService;
 import io.micrometer.core.instrument.Counter;
@@ -68,6 +69,12 @@ public class AuthService {
 
   @Transactional
   public AuthResult register(String email, String rawPassword, String displayName) {
+    if (!props.registrationEnabled()) {
+      // Checked before the email lookup so a closed instance leaks nothing about who has an
+      // account (a 409-vs-422 difference would answer "is this address registered?").
+      log.info("Rejected registration attempt: registration is disabled");
+      throw new UnprocessableEntityException("Registration is closed on this instance.");
+    }
     String normalizedEmail = normalizeEmail(email);
     if (userRepository.existsByEmail(normalizedEmail)) {
       throw new ConflictException("Email is already registered");

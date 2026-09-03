@@ -1,7 +1,9 @@
 package com.financetracker.importing;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.financetracker.common.error.UnprocessableEntityException;
 import com.financetracker.importing.CsvParser.ParsedCsv;
 import org.junit.jupiter.api.Test;
 
@@ -74,5 +76,16 @@ class CsvParserTest {
     // The row survives and the amount still lands in its own column — that is what matters.
     assertThat(parsed.rows().get(0).get(3)).isEqualTo("-30,00");
     assertThat(parsed.rows().get(0).get(2)).contains("MEDITRANS").contains("SPZOZ");
+  }
+
+  @Test
+  void reportsAMalformedRowAsAUserErrorRatherThanCrashing() {
+    // Unterminated quote: Commons CSV throws mid-iteration. That used to escape as an
+    // UncheckedIOException -> unmapped -> HTTP 500 with no clue which row was at fault.
+    String broken = "a;b\n\"unterminated;2\n";
+
+    assertThatThrownBy(() -> CsvParser.parse(broken, ";"))
+        .isInstanceOf(UnprocessableEntityException.class)
+        .hasMessageContaining("Could not parse the CSV");
   }
 }
