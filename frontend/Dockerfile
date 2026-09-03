@@ -11,9 +11,17 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
-# VITE_API_BASE_URL is intentionally left empty: the SPA calls /api on its own origin and nginx
-# (runtime stage) proxies that to the backend. Same-origin keeps the refresh cookie first-party
-# (SameSite=Lax), exactly like the Vite dev proxy — see CLAUDE.md §5 / HANDOFF §21 (3.5b #6).
+# Where the SPA sends API calls. Vite inlines this at BUILD time, so it must be an ARG — a runtime
+# env var arrives too late and the bundle ships with an empty base URL.
+#
+# Empty (the default) = same-origin: the SPA calls /api and nginx proxies it, which keeps the
+# refresh cookie first-party (SameSite=Lax). That's the preferred setup and is what Docker Compose
+# uses. On Railway private DNS doesn't resolve, so this is set to the backend's PUBLIC domain,
+# making the API cross-origin — which then requires SameSite=None; Secure on the cookie and the
+# frontend origin in APP_CORS_ALLOWED_ORIGINS. See nginx.conf.template.
+ARG VITE_API_BASE_URL=""
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+
 COPY . .
 RUN npm run build
 
