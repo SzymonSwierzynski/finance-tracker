@@ -24,6 +24,9 @@ frontend/dist/
 .env
 .env.*
 !.env.example
+# Build-time public config for the SPA — no secrets, and it MUST be committed or the deployed
+# bundle ships with an empty API base URL.
+!frontend/.env.production
 # Deployment key material — the JWT signing pair must never reach the remote.
 *.pem
 *.key
