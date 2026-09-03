@@ -33,6 +33,12 @@ server:
     include-binding-errors: never
 
 management:
+  # Surface `info.*` properties on /actuator/info (off by default since Boot 2.6). This is how the
+  # deployed commit becomes queryable at runtime — the only way to prove which code is *executing*
+  # rather than which commit was built.
+  info:
+    env:
+      enabled: true
   endpoints:
     web:
       exposure:
@@ -42,6 +48,16 @@ management:
       probes:
         enabled: true
       show-details: when_authorized
+
+# Reported by GET /actuator/info (public). Railway injects RAILWAY_GIT_COMMIT_SHA at build+runtime;
+# anywhere else this falls back to "unknown". Lets you confirm the deployed commit without trusting
+# the dashboard: curl https://<backend>/actuator/info
+info:
+  app:
+    name: finance-tracker
+  git:
+    commit: ${RAILWAY_GIT_COMMIT_SHA:unknown}
+    branch: ${RAILWAY_GIT_BRANCH:unknown}
 
 springdoc:
   swagger-ui:
