@@ -6,8 +6,7 @@
 # Only ${FT_*} vars are substituted — NGINX_ENVSUBST_FILTER in the Dockerfile protects nginx's own
 # runtime vars ($host, $request_uri, …) from being blanked. Two knobs, so one file serves both
 # Docker Compose and a platform with different internal DNS (e.g. Railway):
-#   FT_RESOLVER      full resolver args      compose: "127.0.0.11 ipv6=off valid=10s"
-#                                            railway: "[fd12::10] ipv6=on valid=1s"
+#   (that's the only knob — DNS is left to the system resolver, see the /api/ block below)
 #   FT_API_UPSTREAM  backend hostname        compose: "backend"
 #                                            railway: "backend.railway.internal"
 server {
@@ -41,15 +40,17 @@ server {
     gzip_min_length 1024;
     gzip_types text/plain text/css application/javascript application/json image/svg+xml;
 
-    # Reverse-proxy the API to the backend service on the internal network. Resolve the name at
-    # request time (variable upstream) so nginx boots even before the backend is up and survives a
-    # backend restart getting a new container IP — on Railway the private IP changes on every
-    # redeploy, which is why the resolver TTL there is short. $request_uri keeps the full path
-    # (incl. the /api prefix the backend serves under) and the query string intact.
+    # Reverse-proxy the API to the backend service on the internal network. proxy_pass carries no
+    # URI part, so nginx forwards the original path untouched — keeping the /api prefix the backend
+    # serves under, plus the query string.
     location /api/ {
-        resolver ${FT_RESOLVER};
-        set $api_upstream ${FT_API_UPSTREAM};
-        proxy_pass http://$api_upstream:8080$request_uri;
+        # STATIC upstream on purpose. A variable upstream + `resolver` makes nginx do its own DNS,
+        # which could not resolve *.railway.internal (AAAA-only) however it was tuned. Naming the
+        # host directly makes nginx resolve once at startup via getaddrinfo/resolv.conf — the same
+        # system resolver the backend already uses successfully for postgres.railway.internal.
+        # Trade-off: nginx re-resolves only on restart, and won't start if the name is wrong (which
+        # is a clearer failure than a runtime 502).
+        proxy_pass http://${FT_API_UPSTREAM}:8080;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;

@@ -29,7 +29,6 @@ FROM nginx:1.27-alpine AS runtime
 # expansion, so a regex anchor here gets mangled before nginx sees it. The listen port is NOT
 # templated (see nginx.conf.template); set the platform's target port to 80 instead.
 ENV NGINX_ENVSUBST_FILTER="^FT_"
-ENV FT_RESOLVER="127.0.0.11 ipv6=off valid=10s"
 ENV FT_API_UPSTREAM="backend"
 
 COPY nginx.conf.template /etc/nginx/templates/default.conf.template
