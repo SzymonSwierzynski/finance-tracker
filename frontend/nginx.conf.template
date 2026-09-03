@@ -40,27 +40,15 @@ server {
     gzip_min_length 1024;
     gzip_types text/plain text/css application/javascript application/json image/svg+xml;
 
-    # Reverse-proxy the API to the backend service on the internal network. proxy_pass carries no
-    # URI part, so nginx forwards the original path untouched — keeping the /api prefix the backend
-    # serves under, plus the query string.
-    location /api/ {
-        # STATIC upstream on purpose. A variable upstream + `resolver` makes nginx do its own DNS,
-        # which could not resolve *.railway.internal (AAAA-only) however it was tuned. Naming the
-        # host directly makes nginx resolve once at startup via getaddrinfo/resolv.conf — the same
-        # system resolver the backend already uses successfully for postgres.railway.internal.
-        # Trade-off: nginx re-resolves only on restart, and won't start if the name is wrong (which
-        # is a clearer failure than a runtime 502).
-        proxy_pass http://${FT_API_UPSTREAM}:8080;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        # OVERWRITE (not append) X-Forwarded-For with the real peer, so a client-supplied header can't
-        # spoof the IP the auth rate limiter keys on. nginx is the only trusted hop; keep the backend
-        # off the public internet (compose binds :8080 to localhost; on Railway give the backend
-        # service NO public domain).
-        proxy_set_header X-Forwarded-For $remote_addr;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
+    # NO /api proxy. This served the same-origin setup, where nginx forwarded /api to the backend
+    # over the internal network — which keeps the refresh cookie first-party (SameSite=Lax). That
+    # is still the better architecture and works under Docker Compose, but Railway's private DNS
+    # (*.railway.internal) would not resolve from this container by any means tried: nginx's own
+    # resolver, the system resolver, alpine and Debian bases alike, with and without
+    # ENABLE_ALPINE_PRIVATE_NETWORKING. So on Railway the SPA calls the backend's PUBLIC domain
+    # directly via VITE_API_BASE_URL, which makes it cross-origin and therefore requires
+    # SameSite=None; Secure on the refresh cookie plus the frontend origin in CORS.
+    # Restore this block (and drop VITE_API_BASE_URL) if private networking is ever fixed.
 
     # Fingerprinted build assets can be cached hard; they change name on every build.
     location /assets/ {
