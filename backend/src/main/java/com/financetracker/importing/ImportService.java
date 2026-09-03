@@ -30,10 +30,10 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -101,10 +101,8 @@ public class ImportService {
     List<ParsedImportRow> rows =
         requireWithinRowLimit(ImportRowBuilder.build(parsed.rows(), mapping));
 
-    Set<String> existing =
-        new HashSet<>(
-            transactionRepository.findDedupeHashesByUserIdAndAccountId(userId, accountId));
-    Set<String> seenInFile = new HashSet<>();
+    Map<String, Long> alreadyStored = storedHashCounts(userId, accountId);
+    Map<String, Integer> claimedByFile = new HashMap<>();
 
     List<PreviewRow> previewRows = new ArrayList<>();
     int validRows = 0;
@@ -121,7 +119,7 @@ public class ImportService {
           expenseMinor += row.amountMinor();
         }
         String hash = dedupeHash(row, account.getCurrency(), accountId);
-        duplicate = existing.contains(hash) || !seenInFile.add(hash);
+        duplicate = alreadyImported(hash, claimedByFile, alreadyStored);
         if (duplicate) {
           duplicateRows++;
         }
@@ -200,10 +198,8 @@ public class ImportService {
     for (Category category : categoryRepository.findByUserIdOrderByNameAsc(userId)) {
       kindById.put(category.getId(), category.getKind());
     }
-    // Dedupe against existing rows for this account and within the file (seed then add-as-we-go).
-    Set<String> seen =
-        new HashSet<>(
-            transactionRepository.findDedupeHashesByUserIdAndAccountId(userId, accountId));
+    Map<String, Long> alreadyStored = storedHashCounts(userId, accountId);
+    Map<String, Integer> claimedByFile = new HashMap<>();
 
     List<Transaction> toInsert = new ArrayList<>();
     int skippedDuplicates = 0;
@@ -214,7 +210,7 @@ public class ImportService {
         continue;
       }
       String hash = dedupeHash(row, currency, accountId);
-      if (!seen.add(hash)) {
+      if (alreadyImported(hash, claimedByFile, alreadyStored)) {
         skippedDuplicates++;
         continue;
       }
@@ -369,6 +365,35 @@ public class ImportService {
   private static String dedupeHash(ParsedImportRow row, String currency, long accountId) {
     return DedupeHash.of(
         List.of(row.date().toString(), row.amountMinor(), currency, accountId, row.description()));
+  }
+
+  /** How many transactions this account already holds per dedupe hash (active rows only). */
+  private Map<String, Long> storedHashCounts(long userId, long accountId) {
+    return transactionRepository.findDedupeHashesByUserIdAndAccountId(userId, accountId).stream()
+        .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
+  }
+
+  /**
+   * Dedupe is a MULTISET comparison, not a set membership test: it asks "does the file claim more
+   * of this transaction than the account already holds?" and imports only the surplus.
+   *
+   * <p>A bank export never lists one transaction twice, so two byte-identical rows are two real
+   * payments — the old code treated the second as a duplicate of the first and silently dropped it
+   * (a real 3-month mBank export lost 4 transactions that way). Equally, a plain "is this hash
+   * already stored?" check would drop a genuine pair when re-importing an overlapping date range,
+   * because one of the two is already stored from the earlier import.
+   *
+   * <p>Counting both sides handles all three cases: stored 0 / claimed 2 imports both; stored 2 /
+   * claimed 2 imports none (re-uploading a file stays idempotent); stored 1 / claimed 2 imports
+   * exactly the missing one.
+   *
+   * <p>Deliberately leaves the §4.9 hash inputs alone — the hash is shared with manual entry,
+   * restore and recurring, so changing it would orphan every stored row.
+   */
+  private static boolean alreadyImported(
+      String hash, Map<String, Integer> claimedByFile, Map<String, Long> alreadyStored) {
+    int nthInFile = claimedByFile.merge(hash, 1, Integer::sum);
+    return nthInFile <= alreadyStored.getOrDefault(hash, 0L);
   }
 
   private static ImportMapping toMapping(ImportProfile p) {
