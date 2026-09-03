@@ -24,6 +24,10 @@ frontend/dist/
 .env
 .env.*
 !.env.example
+# Deployment key material — the JWT signing pair must never reach the remote.
+*.pem
+*.key
+jwt.pub
 
 # Agent working notes — kept locally, not part of the codebase
 HANDOFF.md
