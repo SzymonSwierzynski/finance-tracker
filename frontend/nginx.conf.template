@@ -1,0 +1,75 @@
+# nginx serves the built SPA and reverse-proxies /api to the backend. Serving the app and the API
+# from one origin keeps the refresh cookie first-party (SameSite=Lax), exactly like Vite's dev proxy
+# — see CLAUDE.md §5 and HANDOFF §21 (3.5b #6). No CORS, no cookie rewriting needed.
+#
+# This is an envsubst TEMPLATE (nginx:alpine expands /etc/nginx/templates/*.template at boot).
+# Only ${FT_*} vars are substituted — NGINX_ENVSUBST_FILTER in the Dockerfile protects nginx's own
+# runtime vars ($host, $request_uri, …) from being blanked. Two knobs, so one file serves both
+# Docker Compose and a platform with different internal DNS (e.g. Railway):
+#   FT_RESOLVER      full resolver args      compose: "127.0.0.11 ipv6=off valid=10s"
+#                                            railway: "[fd12::10] ipv6=on valid=1s"
+#   FT_API_UPSTREAM  backend hostname        compose: "backend"
+#                                            railway: "backend.railway.internal"
+server {
+    listen 80;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Bound request bodies — defence-in-depth for the JSON restore endpoint (the backend also caps
+    # it). Generous enough for a full backup, small enough to blunt a body-size DoS.
+    client_max_body_size 16m;
+
+    # Baseline security headers. NOTE: nginx does NOT inherit `add_header` into a location that
+    # declares its own `add_header`, so these three are repeated in the /assets/ and / blocks below.
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_types text/plain text/css application/javascript application/json image/svg+xml;
+
+    # Reverse-proxy the API to the backend service on the internal network. Resolve the name at
+    # request time (variable upstream) so nginx boots even before the backend is up and survives a
+    # backend restart getting a new container IP — on Railway the private IP changes on every
+    # redeploy, which is why the resolver TTL there is short. $request_uri keeps the full path
+    # (incl. the /api prefix the backend serves under) and the query string intact.
+    location /api/ {
+        resolver ${FT_RESOLVER};
+        set $api_upstream ${FT_API_UPSTREAM};
+        proxy_pass http://$api_upstream:8080$request_uri;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        # OVERWRITE (not append) X-Forwarded-For with the real peer, so a client-supplied header can't
+        # spoof the IP the auth rate limiter keys on. nginx is the only trusted hop; keep the backend
+        # off the public internet (compose binds :8080 to localhost; on Railway give the backend
+        # service NO public domain).
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Fingerprinted build assets can be cached hard; they change name on every build.
+    location /assets/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-Frame-Options "DENY" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+        try_files $uri =404;
+    }
+
+    # SPA history fallback: unknown paths return index.html so client-side routing survives reloads
+    # and deep links (/breakdown, /transactions, …). The shell must NOT be cached, or clients keep a
+    # stale index.html (pointing at old asset hashes) after a redeploy.
+    location / {
+        add_header Cache-Control "no-cache" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-Frame-Options "DENY" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+        try_files $uri $uri/ /index.html;
+    }
+}

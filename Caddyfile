@@ -1,0 +1,8 @@
+# TLS terminator. Caddy fetches and renews a Let's Encrypt cert automatically — the app's prod
+# profile sets Secure cookies, so HTTPS is mandatory, not optional.
+# Everything (SPA + /api) goes to the frontend container, which already proxies /api to the
+# backend. Keeping one upstream preserves the same-origin refresh cookie.
+{$APP_DOMAIN} {
+	encode gzip
+	reverse_proxy frontend:80
+}

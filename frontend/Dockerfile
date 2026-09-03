@@ -19,7 +19,16 @@ RUN npm run build
 
 # --- Runtime stage: nginx serving the bundle + reverse-proxying /api ---
 FROM nginx:1.27-alpine AS runtime
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# The image's entrypoint expands /etc/nginx/templates/*.template with envsubst at boot. The FILTER
+# is load-bearing: without it envsubst would also blank nginx's own runtime vars ($host, $uri, …).
+# Defaults target the compose network, so `docker compose up` needs no extra config; override the
+# two FT_ vars to deploy on a platform with different internal DNS (see nginx.conf.template).
+ENV NGINX_ENVSUBST_FILTER="^FT_" \
+    FT_RESOLVER="127.0.0.11 ipv6=off valid=10s" \
+    FT_API_UPSTREAM="backend"
+
+COPY nginx.conf.template /etc/nginx/templates/default.conf.template
 COPY --from=build /app/dist /usr/share/nginx/html
 
 EXPOSE 80

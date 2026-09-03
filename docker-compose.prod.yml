@@ -1,0 +1,51 @@
+# Production overlay. Use WITH the base file, never alone:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# What it changes vs. the local demo: prod Spring profile (Secure cookies, Swagger off, JSON logs),
+# a stable JWT keypair, real DB credentials, and no published ports — Caddy reaches the frontend
+# over the compose network and is the only thing listening on the host.
+services:
+  db:
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports: !reset []
+
+  backend:
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB}?stringtype=unspecified
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      # Bare base64 (PKCS8 private / X509 public) — RsaKeys strips PEM armour and whitespace,
+      # so a single-line value avoids multi-line env-var pain.
+      APP_AUTH_JWT_PRIVATE_KEY: ${APP_AUTH_JWT_PRIVATE_KEY}
+      APP_AUTH_JWT_PUBLIC_KEY: ${APP_AUTH_JWT_PUBLIC_KEY}
+      APP_AUTH_JWT_KEY_ID: ft-prod-1
+      # Required in the prod profile (no default). Same-origin, so this is only a fallback.
+      APP_CORS_ALLOWED_ORIGINS: https://${APP_DOMAIN}
+      # Container-aware heap; keeps the JVM inside a 1GB box.
+      JAVA_OPTS: -XX:MaxRAMPercentage=75
+    ports: !reset []
+    restart: unless-stopped
+
+  frontend:
+    ports: !reset []
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    depends_on: [frontend]
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN}
+    restart: unless-stopped
+
+volumes:
+  caddy-data:
