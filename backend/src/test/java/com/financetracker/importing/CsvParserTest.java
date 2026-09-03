@@ -58,4 +58,21 @@ class CsvParserTest {
     assertThat(parsed.rows()).isEmpty();
     assertThat(parsed.delimiter()).isEqualTo(';'); // no separators found → first candidate wins
   }
+
+  @Test
+  void survivesUnescapedQuotesInsideAQuotedField() {
+    // Real mBank row: the merchant is literally named "MEDITRANS", and the bank quotes the whole
+    // field without escaping the inner quotes. Before setTrailingData(true) this threw
+    // "invalid char between encapsulated token and delimiter" and failed the ENTIRE import (500).
+    String row =
+        "2026-06-06;ZAKUP;\"\"MEDITRANS\" SPZOZ  /Warszawa   DATA TRANSAKCJI: 2026-06-05\";-30,00";
+
+    ParsedCsv parsed = CsvParser.parse(row, ";");
+
+    assertThat(parsed.rows()).hasSize(1);
+    assertThat(parsed.rows().get(0)).hasSize(4);
+    // The row survives and the amount still lands in its own column — that is what matters.
+    assertThat(parsed.rows().get(0).get(3)).isEqualTo("-30,00");
+    assertThat(parsed.rows().get(0).get(2)).contains("MEDITRANS").contains("SPZOZ");
+  }
 }

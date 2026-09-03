@@ -26,8 +26,20 @@ public final class CsvParser {
   public static ParsedCsv parse(String text, String delimiter) {
     char delim =
         (delimiter != null && !delimiter.isBlank()) ? delimiter.charAt(0) : detectDelimiter(text);
+    // setTrailingData: bank exports are not always RFC 4180. mBank quotes the whole description
+    // field but does NOT escape quotes inside it, e.g. a merchant literally named "MEDITRANS":
+    //     ;""MEDITRANS" SPZOZ  /Warszawa   DATA TRANSAKCJI: 2026-06-05";
+    // The lexer reads the leading "" as one escaped quote, treats the quote after MEDITRANS as the
+    // field's closing quote, then finds ' SPZOZ...' after it and throws "invalid char between
+    // encapsulated token and delimiter" — killing the WHOLE import over one row. Allowing trailing
+    // data appends it to the token instead, so the row survives with its description intact.
     CSVFormat format =
-        CSVFormat.DEFAULT.builder().setDelimiter(delim).setIgnoreEmptyLines(true).build();
+        CSVFormat.DEFAULT
+            .builder()
+            .setDelimiter(delim)
+            .setIgnoreEmptyLines(true)
+            .setTrailingData(true)
+            .build();
     try (CSVParser parser = CSVParser.parse(text, format)) {
       List<List<String>> rows = new ArrayList<>();
       for (CSVRecord record : parser) {
