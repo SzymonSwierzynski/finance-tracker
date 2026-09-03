@@ -24,11 +24,11 @@ FROM nginx:1.27-alpine AS runtime
 # is load-bearing: without it envsubst would also blank nginx's own runtime vars ($host, $uri, …).
 # Defaults target the compose network, so `docker compose up` needs no extra config; override the
 # two FT_ vars to deploy on a platform with different internal DNS (see nginx.conf.template).
-# NOTE: no '$' anywhere in the filter — Dockerfile ENV performs its own variable expansion, so a
-# regex anchor like "PORT$" gets mangled before nginx sees it and PORT stops being substituted
-# (nginx then dies with: host not found in "${PORT}" of the "listen" directive).
-ENV NGINX_ENVSUBST_FILTER="^(FT_|PORT)"
-ENV PORT=80
+# Only FT_ vars are templated. The filter is load-bearing: without it envsubst would also blank
+# nginx's own runtime vars ($host, $uri, …). Keep it free of '$' — Dockerfile ENV does its own
+# expansion, so a regex anchor here gets mangled before nginx sees it. The listen port is NOT
+# templated (see nginx.conf.template); set the platform's target port to 80 instead.
+ENV NGINX_ENVSUBST_FILTER="^FT_"
 ENV FT_RESOLVER="127.0.0.11 ipv6=off valid=10s"
 ENV FT_API_UPSTREAM="backend"
 

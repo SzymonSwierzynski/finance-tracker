@@ -11,14 +11,16 @@
 #   FT_API_UPSTREAM  backend hostname        compose: "backend"
 #                                            railway: "backend.railway.internal"
 server {
-    # Railway (and most PaaS) inject PORT and route only to that port — a hardcoded 80 gets a 502.
-    # Defaults to 80 via the Dockerfile ENV, so compose is unchanged.
-    listen ${PORT};
-    # IPv6 is REQUIRED on Railway: its proxy dials the container over IPv6, so an IPv4-only bind
-    # answers nothing and the edge returns "Application failed to respond". The nginx image's own
-    # 10-listen-on-ipv6-by-default.sh cannot help here — it runs BEFORE 20-envsubst-on-templates.sh
+    # Fixed port 80 on BOTH stacks. Deliberately not templated from $PORT: platforms let you set the
+    # route's target port instead, and templating it here only added a way for the container to die
+    # at boot. On Railway set the domain's target port to 80.
+    #
+    # The IPv6 line is REQUIRED on Railway: its proxy dials the container over IPv6, so an IPv4-only
+    # bind answers nothing and the edge returns "Application failed to respond". The nginx image's
+    # own 10-listen-on-ipv6-by-default.sh cannot help — it runs BEFORE 20-envsubst-on-templates.sh
     # renders this file, so it patches the stock conf that we then overwrite. Bind both explicitly.
-    listen [::]:${PORT};
+    listen 80;
+    listen [::]:80;
     server_name _;
 
     root /usr/share/nginx/html;
