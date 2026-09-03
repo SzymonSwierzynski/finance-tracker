@@ -27,7 +27,7 @@ repositories {
     mavenCentral()
 }
 
-val springdocVersion = "2.8.9"
+val springdocVersion = "3.0.3"
 
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
