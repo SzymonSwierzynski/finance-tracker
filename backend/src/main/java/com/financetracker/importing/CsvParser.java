@@ -38,7 +38,7 @@ public final class CsvParser {
             .builder()
             .setDelimiter(delim)
             .setIgnoreEmptyLines(true)
-            .setTrailingData(true)
+            .setTrailingDelimiter(true)
             .build();
     try (CSVParser parser = CSVParser.parse(text, format)) {
       List<List<String>> rows = new ArrayList<>();

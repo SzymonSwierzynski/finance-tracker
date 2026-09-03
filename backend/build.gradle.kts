@@ -45,7 +45,9 @@ dependencies {
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:$springdocVersion")
 
     // CSV import (Phase 4): robust quoted-field parsing of Polish bank exports.
-    implementation("org.apache.commons:commons-csv:1.10.0")
+    // >= 1.11.0 for CSVFormat.Builder.setTrailingData(boolean), which lets the parser survive bank
+    // exports that don't escape quotes inside a quoted field (see CsvParser). Not available in 1.10.
+    implementation("org.apache.commons:commons-csv:1.11.0")
 
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")
